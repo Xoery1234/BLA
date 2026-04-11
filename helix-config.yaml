@@ -1,0 +1,5 @@
+version: 1
+host: accelerator.sekala.xyz
+cdn:
+  prod:
+    host: accelerator.sekala.xyz
