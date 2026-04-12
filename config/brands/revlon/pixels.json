@@ -1,0 +1,29 @@
+{
+  "$schema": "Conversion pixel config — TD-5 §4.2. Per-brand pixel IDs and event mapping.",
+  "$note": "Phase A placeholder. Pixel IDs TBD pending Revlon media team.",
+  "meta": {
+    "enabled": true,
+    "pixelId": "{{REVLON_META_PIXEL_ID}}",
+    "events": ["PageView", "Lead", "ViewContent"]
+  },
+  "google": {
+    "enabled": true,
+    "conversionId": "{{REVLON_GOOGLE_ADS_CONVERSION_ID}}",
+    "conversionLabel": "{{REVLON_GOOGLE_ADS_CONVERSION_LABEL}}",
+    "events": ["page_view", "generate_lead", "view_item"]
+  },
+  "tiktok": {
+    "enabled": false,
+    "pixelId": null,
+    "events": []
+  },
+  "linkedin": {
+    "enabled": false,
+    "partnerId": null,
+    "conversionId": null
+  },
+  "gtm": {
+    "enabled": false,
+    "containerId": null
+  }
+}

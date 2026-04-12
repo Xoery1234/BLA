@@ -1,0 +1,16 @@
+{
+  "$schema": "AI Companion config — TD-6 §4.1. Per-brand companion mode and budget.",
+  "$note": "Stage 1 starts in stub mode. Switch to 'real' after Anthropic API key is provisioned.",
+  "companion": {
+    "mode": "stub",
+    "model": "claude-sonnet-4-5-20250514",
+    "maxMonthlySpend": 50,
+    "budgetResetDay": 1,
+    "personas": {
+      "strategist": true,
+      "editor": true,
+      "auditor": true,
+      "analyst": false
+    }
+  }
+}
