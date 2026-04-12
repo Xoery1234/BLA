@@ -1,0 +1,79 @@
+<!--
+  Sidekick Library — Block Catalogue
+  ============================================
+  This document powers the Sidekick Library panel.
+  Sidekick reads the helix-blocks table below to populate
+  the block picker. Each row maps to a block example page
+  that contains the copyable block structure.
+
+  When a marketer clicks a block in the Library panel,
+  Sidekick copies the block's HTML table structure to clipboard.
+  The marketer pastes it into their da.live document.
+
+  Spec: PRD R7 — prd-marketer-enablement-stage1.md
+  EDS docs: https://www.aem.live/docs/sidekick-library
+
+  To add a new block:
+  1. Create an example page at /tools/sidekick/blocks/{block-name}
+  2. Add a row to the helix-blocks table below
+  3. Preview this page in Sidekick to refresh the library
+-->
+
+<h1>Block Library</h1>
+
+<!-- helix-blocks sheet — Sidekick reads this automatically -->
+<div class="library-metadata">
+  <div>
+    <div>name</div>
+    <div>path</div>
+  </div>
+</div>
+
+<h2>Blocks</h2>
+
+<table>
+  <thead>
+    <tr>
+      <th>name</th>
+      <th>path</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Hero</td>
+      <td>/tools/sidekick/blocks/hero</td>
+    </tr>
+    <tr>
+      <td>Intrigue</td>
+      <td>/tools/sidekick/blocks/intrigue</td>
+    </tr>
+    <tr>
+      <td>Email Capture</td>
+      <td>/tools/sidekick/blocks/email-capture</td>
+    </tr>
+    <tr>
+      <td>Social Proof</td>
+      <td>/tools/sidekick/blocks/social-proof</td>
+    </tr>
+    <tr>
+      <td>Columns</td>
+      <td>/tools/sidekick/blocks/columns</td>
+    </tr>
+    <tr>
+      <td>Cards</td>
+      <td>/tools/sidekick/blocks/cards</td>
+    </tr>
+    <tr>
+      <td>Accordion</td>
+      <td>/tools/sidekick/blocks/accordion</td>
+    </tr>
+    <tr>
+      <td>Carousel</td>
+      <td>/tools/sidekick/blocks/carousel</td>
+    </tr>
+    <tr>
+      <td>Tabs</td>
+      <td>/tools/sidekick/blocks/tabs</td>
+    </tr>
+  </tbody>
+</table>

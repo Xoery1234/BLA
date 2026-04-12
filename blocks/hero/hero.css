@@ -62,7 +62,7 @@
   font-weight: 600;
   letter-spacing: var(--letter-spacing-caps, 0.05em);
   text-transform: uppercase;
-  color: var(--color-primary, var(--link-color));
+  color: var(--color-primary-text, var(--color-primary, var(--link-color)));
   margin-bottom: var(--spacing-2, 0.5rem);
 }
 

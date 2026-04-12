@@ -1,0 +1,324 @@
+<!--
+  R2.A Conversion Landing — da.live Template
+  ============================================
+  Clone this document to create a new campaign landing page.
+  Follow the instructions in each section. Delete instruction
+  text (marked with ⬇ arrows) after filling in your content.
+
+  Block order is fixed: Campaign Hero → Trust Row → Single Benefit
+  → Proof Block → Conversion Block → Footer Legal
+  Do NOT reorder, add, or remove required blocks.
+
+  IMPORTANT — Proof Block and Conversion Block each have multiple
+  variants. Pick ONE variant per block and DELETE the others.
+  Instructions are in each block section.
+
+  Spec: /accelerator-docs/specs/r2a-conversion-landing.md
+  Authoring guide: /content/guides/authoring-guide.html
+-->
+
+<!--
+  ============================================================
+  PAGE METADATA
+  ============================================================
+  In da.live, open the metadata sheet (Sidekick → Metadata)
+  and set these fields:
+
+  | Key           | Value                                    |
+  |---------------|------------------------------------------|
+  | template      | r2a-conversion-landing                   |
+  | brand         | revlon                                   |
+  | campaign      | (leave empty for default, or: holiday-2026, summer-glow) |
+  | title         | Your page title — max 60 chars           |
+  | description   | Page description for search — max 155 chars |
+  | og:image      | URL to your hero image for social shares  |
+
+  For paid campaigns, also set:
+  | Key           | Value                                    |
+  |---------------|------------------------------------------|
+  | campaign-name | Internal campaign reference (max 80 chars)|
+  | flight-start  | Campaign start date (YYYY-MM-DD)         |
+  | flight-end    | Campaign end date (YYYY-MM-DD)           |
+
+  The "campaign" field switches the colour palette site-wide.
+  See the authoring guide for available palette names.
+  ============================================================
+-->
+
+<!-- ========================================================
+     CAMPAIGN HERO BLOCK
+     ======================================================== -->
+<!--
+  Campaign Hero authored structure:
+  Row 1 = hero image (drag from assets panel or paste URL)
+  Row 2 = text content: optional badge/eyebrow, H1 headline,
+          subheadline paragraph, primary CTA link
+
+  ⚠ The H1 is your page title. Every page needs exactly ONE H1.
+    Format it as Heading 1 in da.live (not bold, not Heading 2).
+
+  ⚠ Message match: your headline should mirror the ad creative
+    that drives traffic to this page. If your ad says "50% off
+    this weekend" but the landing says "New collection" — you
+    lose the visitor.
+
+  Image guidance:
+  - Minimum 1600 × 900 px (16:9 ratio)
+  - Max file size 400 KB (compress with squoosh.app)
+  - Use WebP or JPEG format
+  - Alt text is required for accessibility
+-->
+<div>
+  <div class="hero">
+    <div>
+      <picture>
+        <img src="/content/dam/brand/campaign-hero-placeholder.jpg"
+             alt="⬇ Describe the image in 5-10 words for screen readers"
+             width="1600" height="900">
+      </picture>
+    </div>
+    <div>
+      <p>⬇ BADGE — optional short label, e.g. "LIMITED TIME" or "NEW" (max 30 chars, delete if not needed)</p>
+      <h1>⬇ Campaign headline — match your ad creative (max 60 chars)</h1>
+      <p>⬇ Subheadline — one sentence expanding the value proposition (max 140 chars)</p>
+      <p><strong><a href="#conversion">⬇ Primary CTA, e.g. "Shop now" or "Get started" or "Claim offer"</a></strong></p>
+    </div>
+  </div>
+</div>
+
+<!-- ========================================================
+     TRUST ROW BLOCK
+     ======================================================== -->
+<!--
+  Trust Row: 3 short trust signals displayed as a horizontal strip.
+  Each signal is a stat, credential, or award — max 50 chars each.
+
+  Use the Columns block with 3 columns. Each column = one signal.
+
+  Good examples:
+  - "★★★★★ 4.8 on Trustpilot"
+  - "2M+ happy customers"
+  - "Dermatologist recommended"
+  - "Allure Best of Beauty 2025"
+
+  ⚠ Keep all three. Three signals is the conversion-optimised
+    minimum. Two looks sparse, four crowds mobile.
+-->
+<div>
+  <div class="columns">
+    <div>
+      <div>⬇ Trust signal 1, e.g. "★★★★★ 4.8 average rating" (max 50 chars)</div>
+      <div>⬇ Trust signal 2, e.g. "2M+ customers worldwide" (max 50 chars)</div>
+      <div>⬇ Trust signal 3, e.g. "Dermatologist recommended" (max 50 chars)</div>
+    </div>
+  </div>
+</div>
+
+<!-- ========================================================
+     SINGLE BENEFIT BLOCK
+     ======================================================== -->
+<!--
+  Single Benefit: the ONE thing this campaign is selling.
+  Not a feature list — one clear benefit with supporting media.
+
+  Use a Columns block: one column for text, one for the image.
+
+  ⚠ Resist the urge to add multiple benefits. This is a landing
+    page, not a product page. One benefit, clearly stated, converts
+    better than a feature dump.
+
+  Image guidance:
+  - Square or 4:3 ratio works best (800 × 800 or 800 × 600)
+  - Product shot, lifestyle photo, or illustration
+  - Max 300 KB
+-->
+<div>
+  <div class="columns">
+    <div>
+      <div>
+        <h2>⬇ Benefit headline — what the customer gets (max 50 chars)</h2>
+        <p>⬇ Supporting copy — expand on the benefit in 1-3 sentences. Focus on outcomes, not features. What changes for the customer? (max 280 chars)</p>
+      </div>
+      <div>
+        <picture>
+          <img src="/content/dam/brand/benefit-placeholder.jpg"
+               alt="⬇ Describe the image" width="800" height="800">
+        </picture>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ========================================================
+     PROOF BLOCK — PICK ONE VARIANT, DELETE THE OTHERS
+     ======================================================== -->
+<!--
+  ⚠ IMPORTANT: Three proof variants are provided below.
+    PICK ONE. DELETE the other two entirely.
+
+    Variant A — Customer quotes (2-4 short testimonials)
+    Variant B — Case study stat (one hero number + context)
+    Variant C — Logo wall (6-12 customer/press logos)
+-->
+
+<!-- VARIANT A — Customer Quotes -->
+<!--
+  Cards block with 2-4 customer quotes.
+  Each card: quote text (max 180 chars), author name, role/brand.
+-->
+<div>
+  <div class="cards">
+    <div>
+      <div>
+        <p>"⬇ Customer quote — genuine, specific, max 180 chars. Focus on outcome, not generic praise."</p>
+        <p><strong>⬇ Author Name</strong> — ⬇ Role, Company</p>
+      </div>
+    </div>
+    <div>
+      <div>
+        <p>"⬇ Second customer quote — different angle from the first."</p>
+        <p><strong>⬇ Author Name</strong> — ⬇ Role, Company</p>
+      </div>
+    </div>
+    <div>
+      <div>
+        <p>"⬇ Third customer quote (optional — delete this card if using only two)."</p>
+        <p><strong>⬇ Author Name</strong> — ⬇ Role, Company</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- VARIANT B — Case Study Stat -->
+<!--
+  Single hero stat with context. Use Columns block.
+  The stat should be your most impressive, verifiable number.
+
+  Good: "3× conversion uplift in 6 weeks"
+  Bad:  "Lots of improvement across various metrics"
+-->
+<!--
+<div>
+  <div class="columns">
+    <div>
+      <div>
+        <h2>⬇ Hero stat, e.g. "3×" or "47%" or "$2.4M"</h2>
+        <p>⬇ One sentence of context, e.g. "conversion uplift within 6 weeks of launch"</p>
+        <p><em>⬇ Attribution, e.g. "— Internal data, Q1 2026" or "— Case study: Acme Corp"</em></p>
+      </div>
+    </div>
+  </div>
+</div>
+-->
+
+<!-- VARIANT C — Logo Wall -->
+<!--
+  Social Proof block with 6-12 customer or press logos.
+  Same structure as R1.B social proof, but typically more logos.
+
+  Logo guidance:
+  - Use monochrome/white versions for consistency
+  - 120 × 60 px SVG or PNG with transparent background
+  - Each logo can optionally link to a case study or article
+-->
+<!--
+<div>
+  <div class="social-proof">
+    <div>⬇ Label, e.g. "Trusted by" or "Our customers"</div>
+    <div><picture><img src="/content/dam/brand/customer-logo-1.svg" alt="⬇ Company name" width="120" height="60"></picture></div>
+    <div><picture><img src="/content/dam/brand/customer-logo-2.svg" alt="⬇ Company name" width="120" height="60"></picture></div>
+    <div><picture><img src="/content/dam/brand/customer-logo-3.svg" alt="⬇ Company name" width="120" height="60"></picture></div>
+    <div><picture><img src="/content/dam/brand/customer-logo-4.svg" alt="⬇ Company name" width="120" height="60"></picture></div>
+    <div><picture><img src="/content/dam/brand/customer-logo-5.svg" alt="⬇ Company name" width="120" height="60"></picture></div>
+    <div><picture><img src="/content/dam/brand/customer-logo-6.svg" alt="⬇ Company name" width="120" height="60"></picture></div>
+  </div>
+</div>
+-->
+
+<!-- ========================================================
+     CONVERSION BLOCK — PICK ONE VARIANT, DELETE THE OTHERS
+     ======================================================== -->
+<!--
+  ⚠ IMPORTANT: Three conversion variants are provided below.
+    PICK ONE. DELETE the other two entirely.
+
+    Variant A — Form (1-5 fields + consent)
+    Variant B — Inline CTA (single button with destination URL)
+    Variant C — Phone CTA (click-to-call)
+-->
+
+<!-- VARIANT A — Form Conversion -->
+<!--
+  Email Capture block configured for campaign conversion.
+  Same block as R1.B but with campaign-specific CTA and consent.
+
+  ⚠ The form endpoint URL must be configured before going live.
+    Ask your developer for the webhook URL or check
+    config/brands/revlon/forms.json.
+-->
+<div>
+  <div class="email-capture">
+    <div>⬇ Submit button label, e.g. "Get my offer" or "Start free trial"</div>
+    <div>⬇ Consent text, e.g. "By submitting, you agree to our Terms and Privacy Policy. You can unsubscribe at any time."</div>
+    <div>⬇ Success message, e.g. "You're in! Check your inbox for next steps."</div>
+    <div><a href="https://⬇-PASTE-YOUR-WEBHOOK-URL-HERE">Form endpoint</a></div>
+  </div>
+</div>
+
+<!-- VARIANT B — Inline CTA -->
+<!--
+  Simple button linking to a destination (product page, checkout, etc.)
+  Use a paragraph with a bold link. The link text becomes the button.
+
+  ⚠ Include UTM parameters in the destination URL so you can
+    track conversions from this landing page.
+-->
+<!--
+<div>
+  <p><strong><a href="https://⬇-YOUR-DESTINATION-URL?utm_source=landing&utm_medium=cta&utm_campaign=⬇-CAMPAIGN-NAME">⬇ CTA button label, e.g. "Shop the collection"</a></strong></p>
+</div>
+-->
+
+<!-- VARIANT C — Phone CTA -->
+<!--
+  Click-to-call link for phone-based conversion.
+  Use a paragraph with a tel: link.
+-->
+<!--
+<div>
+  <p><strong><a href="tel:+1⬇PHONENUMBER">⬇ Call to action, e.g. "Call us: +1 (800) 555-0199"</a></strong></p>
+  <p>⬇ Supporting text, e.g. "Mon-Fri 9am-6pm ET. Ask about our launch offer."</p>
+</div>
+-->
+
+<!-- ========================================================
+     SECTION METADATA
+     ======================================================== -->
+<div>
+  <div class="section-metadata">
+    <div>
+      <div>style</div>
+      <div>dark</div>
+    </div>
+  </div>
+</div>
+
+<!-- ========================================================
+     FOOTER LEGAL
+     ======================================================== -->
+<!--
+  Footer is inherited from the brand shell at /footer.
+  You do NOT author footer content per page.
+
+  For campaign-specific legal (terms, privacy, opt-out):
+  Add a Section Metadata block above the footer with:
+  | Key              | Value                              |
+  |------------------|------------------------------------|
+  | campaign-terms   | URL to campaign terms page         |
+  | campaign-privacy | URL to privacy policy              |
+  | campaign-optout  | URL to unsubscribe/opt-out page    |
+
+  ⚠ Regulated verticals (finance, health, alcohol, gaming)
+    MUST have campaign terms reviewed by legal before publishing.
+    Use the pre-publish checklist to document approval.
+-->

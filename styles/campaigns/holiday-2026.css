@@ -11,6 +11,7 @@
 :root[data-brand="revlon"][data-campaign="holiday-2026"] {
   --color-primary: #8B0000;
   --color-primary-contrast: #FFF;
+  --color-primary-text: #E84040;           /* WCAG AA: 4.94:1 on #0A0A0A — use for primary text on dark surfaces */
   --color-accent: #2D5A27;
   --color-accent-contrast: #FFF;
   --color-border-focus: #8B0000;

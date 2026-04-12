@@ -98,8 +98,9 @@
   --elevation-lg: 0 8px 32px rgb(0 0 0 / 20%);
   --elevation-glow: none;
 
-  /* --- Nav --- */
+  /* --- Nav / Header --- */
   --nav-height: 64px;
+  --header-height: var(--nav-height);   /* alias consumed by modal + carousel */
 }
 
 /* fallback fonts */

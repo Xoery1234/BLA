@@ -21,8 +21,8 @@
       "$description": "Default Revlon palette — matches brand tokens exactly. Used as reference.",
       "tokens": {}
     },
-    "holiday-red-green": {
-      "$description": "Holiday campaign — red primary shifts to warm crimson, green accent.",
+    "holiday-2026": {
+      "$description": "Holiday 2026 campaign — warm crimson primary, forest green accent.",
       "tokens": {
         "--color-primary": "#8B0000",
         "--color-primary-contrast": "#FFF",

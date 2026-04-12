@@ -1,0 +1,400 @@
+<!--
+  Brand Launch Accelerator — Authoring Guide
+  ============================================
+  This guide covers everything a marketer needs to know to
+  author, preview, and publish pages using the accelerator.
+
+  Audience: Maya, Kai, Priya, Sam (all marketer personas)
+  Spec: PRD R4 — prd-marketer-enablement-stage1.md
+  Last updated: 2026-04-12
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Authoring Guide — Brand Launch Accelerator</title>
+  <style>
+    :root {
+      --bg: #0a0a0a;
+      --surface: #141414;
+      --surface-raised: #1e1e1e;
+      --text: #f0f0f0;
+      --text-muted: #999;
+      --accent: #d71920;
+      --accent-soft: #f5e6d3;
+      --border: #333;
+      --code-bg: #1a1a1a;
+      --warning-bg: #3d2600;
+      --warning-border: #c9a84c;
+      --error-bg: #3d0000;
+      --error-border: #d71920;
+      --success-bg: #003d1a;
+      --success-border: #2d8a4e;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 2rem 1.5rem 4rem;
+    }
+    h1 { font-size: 2rem; margin-bottom: 0.5rem; letter-spacing: -0.02em; }
+    h2 { font-size: 1.5rem; margin-top: 3rem; margin-bottom: 1rem; padding-bottom: 0.5rem; border-bottom: 1px solid var(--border); }
+    h3 { font-size: 1.15rem; margin-top: 2rem; margin-bottom: 0.75rem; }
+    p { margin-bottom: 1rem; }
+    .subtitle { color: var(--text-muted); font-size: 1.1rem; margin-bottom: 2rem; }
+    a { color: var(--accent-soft); }
+
+    table { width: 100%; border-collapse: collapse; margin: 1rem 0 1.5rem; font-size: 0.9rem; }
+    th, td { padding: 0.6rem 0.8rem; border: 1px solid var(--border); text-align: left; }
+    th { background: var(--surface); font-weight: 600; }
+    td { background: var(--surface-raised); }
+
+    code { background: var(--code-bg); padding: 0.15rem 0.4rem; border-radius: 3px; font-size: 0.9em; }
+    pre { background: var(--code-bg); padding: 1rem; border-radius: 6px; overflow-x: auto; margin: 1rem 0; font-size: 0.85rem; line-height: 1.5; }
+    pre code { background: none; padding: 0; }
+
+    .callout { padding: 1rem 1.25rem; border-radius: 6px; margin: 1.25rem 0; border-left: 4px solid; }
+    .callout-warning { background: var(--warning-bg); border-color: var(--warning-border); }
+    .callout-error { background: var(--error-bg); border-color: var(--error-border); }
+    .callout-success { background: var(--success-bg); border-color: var(--success-border); }
+    .callout strong { display: block; margin-bottom: 0.25rem; }
+
+    .toc { background: var(--surface); padding: 1.25rem 1.5rem; border-radius: 8px; margin: 2rem 0; }
+    .toc ol { padding-left: 1.25rem; }
+    .toc li { margin: 0.35rem 0; }
+
+    ol, ul { padding-left: 1.5rem; margin-bottom: 1rem; }
+    li { margin-bottom: 0.5rem; }
+  </style>
+</head>
+<body>
+
+<h1>Authoring Guide</h1>
+<p class="subtitle">Brand Launch Accelerator — everything you need to create, preview, and publish pages.</p>
+
+<nav class="toc">
+  <strong>Contents</strong>
+  <ol>
+    <li><a href="#quick-start">Quick Start — Your First Page in 5 Steps</a></li>
+    <li><a href="#block-conventions">Block Table Conventions</a></li>
+    <li><a href="#blocks-reference">Block Reference (R1.B + R2.A)</a></li>
+    <li><a href="#images">Image Sizing Guide</a></li>
+    <li><a href="#metadata">Page Metadata</a></li>
+    <li><a href="#palettes">Campaign Palettes</a></li>
+    <li><a href="#sidekick">Sidekick Operations</a></li>
+    <li><a href="#preview">Preview and Publish</a></li>
+    <li><a href="#seo">SEO Metadata</a></li>
+    <li><a href="#checklist">Pre-Publish Checklist Workflow</a></li>
+    <li><a href="#faq">FAQ — Common Mistakes</a></li>
+    <li><a href="#future">Coming Soon</a></li>
+  </ol>
+</nav>
+
+<!-- ============================================================ -->
+<h2 id="quick-start">1. Quick Start — Your First Page in 5 Steps</h2>
+
+<p>This gets you from zero to a live preview in under 30 minutes.</p>
+
+<ol>
+  <li><strong>Open the template.</strong> Go to <code>/content/templates/</code> in da.live. Open <code>r1b-coming-soon-teaser</code> for a teaser page, or <code>r2a-conversion-landing</code> for a campaign landing page.</li>
+
+  <li><strong>Clone it.</strong> In Sidekick, click the three-dot menu and select "Copy." Paste the copy into your target folder (e.g. <code>/content/revlon/campaigns/spring-2026/</code>). Rename the file to your page name (use lowercase, hyphens for spaces: <code>spring-drop-teaser</code>).</li>
+
+  <li><strong>Replace placeholder content.</strong> Every placeholder starts with a ⬇ arrow. Replace each one with your real content. Delete instruction text when done. Keep the block table structure intact — don't delete or reorder the rows.</li>
+
+  <li><strong>Set your metadata.</strong> Open the metadata sheet in Sidekick. Set <code>title</code>, <code>description</code>, <code>brand</code>, and optionally <code>campaign</code>. Details in the <a href="#metadata">Metadata section</a>.</li>
+
+  <li><strong>Preview.</strong> Click "Preview" in Sidekick. Your page renders at <code>https://main--{repo}--{org}.aem.page/{path}</code>. Check it on mobile too (resize your browser or use DevTools). When satisfied, follow the <a href="#checklist">pre-publish checklist</a>.</li>
+</ol>
+
+<div class="callout callout-success">
+  <strong>Tip: Keep the wireframe open alongside.</strong>
+  The wireframes at <code>/accelerator-docs/wireframes/r1b/</code> and <code>/accelerator-docs/wireframes/r2a/</code> show what the finished page looks like with Revlon tokens applied. The canonical example at <code>/content/revlon/examples/r1b-red-revival-teaser</code> shows a completed page with real content. Use these as visual reference while editing.
+</div>
+
+<!-- ============================================================ -->
+<h2 id="block-conventions">2. Block Table Conventions</h2>
+
+<p>Every block in da.live is a table. This is the most important thing to understand.</p>
+
+<h3>How blocks work</h3>
+<p>A block table has a specific structure that the system reads to render your content. The first row of the table always contains the block name. Subsequent rows contain your content. The system matches the block name to a code template and renders your content accordingly.</p>
+
+<table>
+  <tr><th>Concept</th><th>What it means</th><th>Example</th></tr>
+  <tr><td>Block name (row 1)</td><td>Tells the system which block to render. Must match exactly — case-insensitive but spelling matters.</td><td><code>Hero</code>, <code>Intrigue</code>, <code>Email Capture</code></td></tr>
+  <tr><td>Content rows (2+)</td><td>Your actual content. Each row maps to a slot in the block. Order matters.</td><td>Row 2 = image, Row 3 = text</td></tr>
+  <tr><td>Block variant</td><td>Some blocks have variants. Add the variant name after the block name, separated by a space.</td><td><code>Hero (cinematic)</code></td></tr>
+</table>
+
+<div class="callout callout-error">
+  <strong>Critical: The H1 Rule</strong>
+  Every page must have exactly one H1 heading. It must be formatted as "Heading 1" in da.live — NOT as bold text, NOT as Heading 2. If the H1 is missing or incorrectly formatted, the page will render incorrectly and SEO will be broken. The H1 goes inside your Hero block.
+</div>
+
+<h3>What can go wrong</h3>
+<table>
+  <tr><th>Mistake</th><th>What happens</th><th>How to fix</th></tr>
+  <tr><td>Block name misspelled</td><td>Block renders as a plain table</td><td>Check spelling: <code>Intrigue</code> not <code>Intrige</code></td></tr>
+  <tr><td>Missing H1</td><td>Page has no title, SEO fails</td><td>Select your headline text, format as Heading 1</td></tr>
+  <tr><td>H1 formatted as bold</td><td>Looks like a heading but system ignores it</td><td>Remove bold, apply Heading 1 style</td></tr>
+  <tr><td>Two H1s on one page</td><td>SEO confusion, accessibility violation</td><td>Change the second to Heading 2</td></tr>
+  <tr><td>Content rows in wrong order</td><td>Block shows content in wrong slots</td><td>Follow template row order exactly</td></tr>
+  <tr><td>Empty row in block table</td><td>May cause rendering gaps</td><td>Delete truly empty rows</td></tr>
+  <tr><td>Image not wrapped in picture</td><td>Image missing or broken</td><td>Use da.live image insert (drag or paste)</td></tr>
+  <tr><td>Block doesn't appear at all</td><td>Blank space where block should be</td><td>Check block name spelling. Open DevTools (F12) for JS errors. Delete block, re-copy from Sidekick Library, refill.</td></tr>
+</table>
+
+<div class="callout callout-warning">
+  <strong>Important: row numbering below does NOT include the block-name row.</strong>
+  In da.live, every block table starts with a row containing the block name (e.g. "Hero", "Intrigue"). EDS strips this row before rendering. The row numbers in the block reference below refer to content rows only — what the system actually processes.
+</div>
+
+<!-- ============================================================ -->
+<h2 id="blocks-reference">3. Block Reference</h2>
+
+<h3>Hero</h3>
+<p>Full-width hero with background image, overlay gradient, and text content.</p>
+<table>
+  <tr><th>Row</th><th>Content</th><th>Notes</th></tr>
+  <tr><td>1</td><td>Hero image</td><td>Drag image from assets panel. Min 1600×900px. Alt text required.</td></tr>
+  <tr><td>2</td><td>Text content (all in one cell)</td><td>All text in this order within a single cell: eyebrow paragraph, H1 headline, subheadline paragraph, CTA link(s). The system reads the order to assign styles. Do NOT put each text element in a separate row — they must all be in one cell.</td></tr>
+</table>
+<p>The eyebrow is any paragraph that appears before the H1. The subheadline is the first paragraph after the H1. Links with button formatting become CTA buttons. Keep all text elements together in row 2 — splitting them into separate rows will break the hero layout.</p>
+
+<h3>Intrigue</h3>
+<p>Horizontal statement strip with scroll-reveal animation.</p>
+<table>
+  <tr><th>Row</th><th>Content</th><th>Notes</th></tr>
+  <tr><td>1-3</td><td>Statement text</td><td>One statement per row. Max 80 chars each. 2-3 statements.</td></tr>
+</table>
+
+<h3>Email Capture</h3>
+<p>Single-field email signup with consent checkbox and anti-spam protection.</p>
+<table>
+  <tr><th>Row</th><th>Content</th><th>Notes</th></tr>
+  <tr><td>1</td><td>Button label</td><td>What the submit button says. Default: "Notify me"</td></tr>
+  <tr><td>2</td><td>Consent text</td><td>Legal text for the consent checkbox. Required.</td></tr>
+  <tr><td>3</td><td>Success message</td><td>Shown after successful signup.</td></tr>
+  <tr><td>4</td><td>Form endpoint link</td><td>Webhook URL wrapped in a link. Get this from your developer.</td></tr>
+</table>
+
+<div class="callout callout-warning">
+  <strong>Form endpoint required before go-live.</strong>
+  Without the webhook URL in row 4, email signups are lost. This is configured in <code>config/brands/revlon/forms.json</code> — ask your developer to set it up and give you the URL.
+</div>
+
+<h3>Social Proof</h3>
+<p>Logo strip showing press mentions or partner brands.</p>
+<table>
+  <tr><th>Row</th><th>Content</th><th>Notes</th></tr>
+  <tr><td>1</td><td>Label text</td><td>e.g. "As seen in" or "Featured by". Text-only row.</td></tr>
+  <tr><td>2+</td><td>Logo images</td><td>One logo per row. Max 6. Use monochrome versions, 120×60px.</td></tr>
+</table>
+
+<h3>Columns</h3>
+<p>Multi-column layout used for Trust Row and Single Benefit blocks in R2.A.</p>
+<table>
+  <tr><th>Row</th><th>Content</th><th>Notes</th></tr>
+  <tr><td>1</td><td>Column content</td><td>Each cell in the row becomes a column. Use for trust signals (3 cells) or benefit + image (2 cells).</td></tr>
+</table>
+
+<h3>Cards</h3>
+<p>Card grid used for customer testimonials in R2.A proof variant A.</p>
+<table>
+  <tr><th>Row</th><th>Content</th><th>Notes</th></tr>
+  <tr><td>1+</td><td>Card content</td><td>Each row becomes a card. Include quote text and author attribution.</td></tr>
+</table>
+
+<!-- ============================================================ -->
+<h2 id="images">4. Image Sizing Guide</h2>
+
+<table>
+  <tr><th>Block</th><th>Dimensions</th><th>Format</th><th>Max size</th></tr>
+  <tr><td>Hero image</td><td>1600 × 900 px (16:9)</td><td>WebP or JPEG</td><td>400 KB</td></tr>
+  <tr><td>Benefit image</td><td>800 × 800 px (1:1) or 800 × 600 (4:3)</td><td>WebP or JPEG</td><td>300 KB</td></tr>
+  <tr><td>Social proof logos</td><td>120 × 60 px</td><td>SVG or PNG (transparent)</td><td>50 KB</td></tr>
+  <tr><td>OG image (social share)</td><td>1200 × 630 px</td><td>JPEG</td><td>300 KB</td></tr>
+</table>
+
+<p>Compress images before uploading using <a href="https://squoosh.app">squoosh.app</a> (free, runs in browser). Uncompressed images slow page load and hurt your Lighthouse score.</p>
+
+<div class="callout callout-warning">
+  <strong>Alt text is not optional.</strong>
+  Every image needs descriptive alt text for screen readers. Describe what the image shows in 5-10 words. "Hero image" is not good alt text. "Revlon lipstick in bold red shade" is.
+</div>
+
+<!-- ============================================================ -->
+<h2 id="metadata">5. Page Metadata</h2>
+
+<p>Open the metadata sheet in Sidekick (click the sheet icon or look for "Metadata" in the document tabs). Set these fields for every page:</p>
+
+<table>
+  <tr><th>Field</th><th>Required</th><th>Description</th><th>Example</th></tr>
+  <tr><td><code>template</code></td><td>Yes</td><td>Archetype identifier</td><td><code>r1b-coming-soon-teaser</code> or <code>r2a-conversion-landing</code></td></tr>
+  <tr><td><code>brand</code></td><td>Yes</td><td>Brand identifier for token loading</td><td><code>revlon</code></td></tr>
+  <tr><td><code>campaign</code></td><td>No</td><td>Campaign palette override</td><td><code>holiday-2026</code> or <code>summer-glow</code></td></tr>
+  <tr><td><code>title</code></td><td>Yes</td><td>Page title for browser tab and SEO</td><td><code>Revlon Spring Drop — Coming Soon</code></td></tr>
+  <tr><td><code>description</code></td><td>Yes</td><td>Search result snippet, max 155 chars</td><td><code>Be the first to know about Revlon's spring collection.</code></td></tr>
+  <tr><td><code>og:image</code></td><td>Yes</td><td>Social share image URL</td><td><code>/content/dam/revlon/og-spring-drop.jpg</code></td></tr>
+</table>
+
+<h3>R2.A Campaign-Specific Metadata (Conversion Landing Pages Only)</h3>
+
+<p>When using the R2.A Conversion Landing template, you can set these additional metadata fields to support paid media tracking and legal compliance:</p>
+
+<table>
+  <tr><th>Field</th><th>Required</th><th>Description</th><th>Example</th></tr>
+  <tr><td><code>campaign-name</code></td><td>No</td><td>Human-readable campaign name for reporting</td><td><code>Holiday 2026 Email Capture</code></td></tr>
+  <tr><td><code>flight-start</code></td><td>No</td><td>Campaign start date (ISO 8601)</td><td><code>2026-11-15</code></td></tr>
+  <tr><td><code>flight-end</code></td><td>No</td><td>Campaign end date (ISO 8601)</td><td><code>2026-12-31</code></td></tr>
+  <tr><td><code>campaign-terms</code></td><td>No</td><td>URL to campaign-specific terms and conditions</td><td><code>/legal/holiday-2026-terms</code></td></tr>
+  <tr><td><code>campaign-privacy</code></td><td>No</td><td>URL to privacy policy</td><td><code>/legal/privacy</code></td></tr>
+  <tr><td><code>campaign-optout</code></td><td>No</td><td>URL to opt-out page</td><td><code>/legal/optout</code></td></tr>
+</table>
+
+<p>These fields are optional but recommended for any paid campaign. They feed the Footer Legal block and provide audit-trail metadata for compliance.</p>
+
+<!-- ============================================================ -->
+<h2 id="palettes">6. Campaign Palettes</h2>
+
+<p>Campaign palettes let you change the colour scheme of a page without touching code. Set the <code>campaign</code> metadata field and the palette applies on next preview.</p>
+
+<h3>Available palettes</h3>
+<table>
+  <tr><th>Palette name</th><th>Primary colour</th><th>Accent colour</th><th>Use for</th></tr>
+  <tr><td><em>(empty / default)</em></td><td>Revlon Red (#D71920)</td><td>Warm Blush (#F5E6D3)</td><td>Standard brand pages</td></tr>
+  <tr><td><code>holiday-2026</code></td><td>Deep Crimson (#8B0000)</td><td>Forest Green (#2D5A27)</td><td>Holiday season campaigns</td></tr>
+  <tr><td><code>summer-glow</code></td><td>Coral (#FF6B47)</td><td>Golden (#FFD700)</td><td>Summer campaigns</td></tr>
+</table>
+
+<h3>How to switch palettes</h3>
+<ol>
+  <li>Open your page in da.live.</li>
+  <li>Open the metadata sheet.</li>
+  <li>Find or add the <code>campaign</code> row.</li>
+  <li>Set the value to the palette name (e.g. <code>holiday-2026</code>).</li>
+  <li>Click "Preview" in Sidekick. The palette applies immediately.</li>
+</ol>
+
+<div class="callout callout-warning">
+  <strong>The palette CSS file must exist.</strong>
+  If you type a campaign name that doesn't have a matching CSS file in <code>styles/campaigns/</code>, the page falls back to the default brand palette. Contact your developer to create new campaign palettes.
+</div>
+
+<!-- ============================================================ -->
+<h2 id="sidekick">7. Sidekick Operations</h2>
+
+<p>Sidekick is the browser extension toolbar that connects da.live to the delivery system. Key operations:</p>
+
+<table>
+  <tr><th>Action</th><th>What it does</th><th>When to use</th></tr>
+  <tr><td>Preview</td><td>Renders your page at <code>.aem.page</code></td><td>After every editing session, before sharing</td></tr>
+  <tr><td>Publish</td><td>Pushes page to <code>.aem.live</code> (production)</td><td>After pre-publish checklist is complete</td></tr>
+  <tr><td>Edit</td><td>Opens the page in da.live for editing</td><td>When you want to change content</td></tr>
+  <tr><td>Library</td><td>Opens the block library</td><td>When you want to insert a new block</td></tr>
+</table>
+
+<h3>Using the Sidekick Library</h3>
+<p>The Library gives you drag-and-drop access to every accelerator block. No need to remember block names or table structures.</p>
+<ol>
+  <li>Open your page in da.live.</li>
+  <li>Click "Library" in the Sidekick toolbar.</li>
+  <li>Browse available blocks — each shows a name and preview.</li>
+  <li>Click a block to copy its table structure to clipboard.</li>
+  <li>Paste into your document at the desired position.</li>
+  <li>Fill in the placeholder content.</li>
+</ol>
+
+<!-- ============================================================ -->
+<h2 id="preview">8. Preview and Publish</h2>
+
+<h3>Preview URLs</h3>
+<p>After clicking "Preview" in Sidekick, your page is available at:</p>
+<pre><code>https://main--{repo}--{org}.aem.page/{your-page-path}</code></pre>
+<p>This URL is stable — you can bookmark it and share it with stakeholders for review. The preview updates every time you click Preview after making changes.</p>
+
+<h3>Live URLs</h3>
+<p>After publishing, the page is available at:</p>
+<pre><code>https://main--{repo}--{org}.aem.live/{your-page-path}</code></pre>
+<p>Or on the custom domain if configured.</p>
+
+<div class="callout callout-error">
+  <strong>Publish is live. There is no undo.</strong>
+  Once you click Publish, the page is immediately visible to the public. There is no staging environment between preview and live. Always complete the <a href="#checklist">pre-publish checklist</a> first.
+</div>
+
+<!-- ============================================================ -->
+<h2 id="seo">9. SEO Metadata</h2>
+
+<p>Set these in the metadata sheet for every page:</p>
+
+<table>
+  <tr><th>Field</th><th>What it controls</th><th>Guidance</th></tr>
+  <tr><td><code>title</code></td><td>Browser tab, search result title</td><td>Max 60 chars. Include brand name. Front-load the key message.</td></tr>
+  <tr><td><code>description</code></td><td>Search result snippet</td><td>Max 155 chars. One compelling sentence. Include your main keyword.</td></tr>
+  <tr><td><code>og:image</code></td><td>Social media share preview</td><td>1200×630px JPEG. Shows when someone shares your URL on social.</td></tr>
+</table>
+
+<p>The system auto-generates JSON-LD structured data from your page content. The H1 becomes the primary heading in structured data — another reason it must be correctly formatted.</p>
+
+<!-- ============================================================ -->
+<h2 id="checklist">10. Pre-Publish Checklist Workflow</h2>
+
+<p>Before publishing any page, complete the pre-publish checklist. This is your process record that brand, legal, and technical requirements have been met.</p>
+
+<h3>How it works</h3>
+<ol>
+  <li>Clone the checklist template from <code>/content/templates/pre-publish-checklist</code>.</li>
+  <li>Rename it to match your page: <code>{page-name}-checklist</code> (e.g. <code>spring-drop-teaser-checklist</code>).</li>
+  <li>Work through each item. Mark each with a date and your name when complete.</li>
+  <li>Share the checklist link with your approver (Sam persona).</li>
+  <li>Only publish the page after all required items are checked.</li>
+</ol>
+
+<div class="callout callout-warning">
+  <strong>This is process discipline, not a technical gate.</strong>
+  da.live does not enforce the checklist — you can publish without completing it. But every page published without a completed checklist is a process violation. Automated approval workflow is planned for a future release.
+</div>
+
+<!-- ============================================================ -->
+<h2 id="faq">11. FAQ — Common Mistakes</h2>
+
+<h3>My block shows as a plain table on preview</h3>
+<p>The block name in the first row is misspelled or not recognised. Check it against the block reference above. Block names are case-insensitive but must be spelled correctly.</p>
+
+<h3>My hero has no headline styling</h3>
+<p>The headline text is not formatted as Heading 1. Select the text in da.live, open the paragraph styles dropdown, and apply "Heading 1." Bold text is not the same as H1.</p>
+
+<h3>My page looks right on desktop but broken on mobile</h3>
+<p>Check image sizes. Oversized images (4000×3000px originals) cause layout overflow on small screens. Resize to the recommended dimensions in the image guide. Also check that your text fits within the character limits — a 200-character headline wraps badly on mobile.</p>
+
+<h3>My campaign palette isn't applying</h3>
+<p>Three things to check: (1) the <code>campaign</code> metadata value matches a palette name exactly — no typos, no spaces, (2) the palette CSS file exists in <code>styles/campaigns/</code>, (3) you clicked Preview after saving the metadata change.</p>
+
+<h3>My form submissions aren't arriving</h3>
+<p>The form endpoint URL in the Email Capture block row 4 is missing or wrong. Check the URL is a valid webhook endpoint. Test by submitting your own email on preview. Check <code>config/brands/revlon/forms.json</code> for the correct endpoint.</p>
+
+<h3>I deleted a block by accident</h3>
+<p>Use da.live's undo (Ctrl/Cmd + Z) immediately. If you've already saved, you can recover from version history in da.live (File menu). As a last resort, re-copy the block from the template or Sidekick Library.</p>
+
+<!-- ============================================================ -->
+<h2 id="future">12. Coming Soon</h2>
+
+<p>These capabilities are planned for upcoming releases. Template documents are designed to support them when they arrive.</p>
+
+<table>
+  <tr><th>Capability</th><th>What it enables</th><th>Target</th></tr>
+  <tr><td>Scheduled publishing (OPP-8)</td><td>Set a page to go live at a specific date/time</td><td>Stage 1+</td></tr>
+  <tr><td>A/B testing (OPP-5)</td><td>Test headline or hero variants with live traffic</td><td>Stage 1+</td></tr>
+  <tr><td>Shared content fragments (OPP-11)</td><td>Update footer/legal/consent across all pages from one source</td><td>Stage 1+</td></tr>
+  <tr><td>AI authoring assistant (TD-6)</td><td>AI-powered content suggestions and audit within da.live</td><td>WP-4</td></tr>
+</table>
+
+</body>
+</html>
