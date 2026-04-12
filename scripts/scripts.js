@@ -38,6 +38,29 @@ function resolveBrand() {
 }
 
 /**
+ * Resolves the active campaign and sets data-campaign on <html> (TD-1 §3.7).
+ * Source: ?campaign= query param or <meta name="campaign">.
+ * Campaign palette CSS is lazy-loaded from /styles/campaigns/{campaignId}.css.
+ * If no campaign CSS exists, cascade falls back to brand tokens gracefully.
+ */
+function resolveCampaign() {
+  const params = new URLSearchParams(window.location.search);
+  let campaignId = params.get('campaign') || '';
+
+  if (!campaignId) {
+    const meta = document.querySelector('meta[name="campaign"]');
+    campaignId = meta && meta.content ? meta.content.trim() : '';
+  }
+
+  const CAMPAIGN_ID_RE = /^[a-z][a-z0-9-]{1,50}$/;
+  if (campaignId && CAMPAIGN_ID_RE.test(campaignId)) {
+    document.documentElement.setAttribute('data-campaign', campaignId);
+    // Lazy-load campaign palette CSS — 404 is non-fatal (TD-1 §3.7 rule 7)
+    loadCSS(`${window.hlx.codeBasePath}/styles/campaigns/${campaignId}.css`);
+  }
+}
+
+/**
  * Installs a guard that prevents runtime mutation of data-brand (TD-1 §3.1).
  * Brand is read-only after first paint.
  */
@@ -173,6 +196,7 @@ export function decorateMain(main) {
 async function loadEager(doc) {
   document.documentElement.lang = 'en';
   resolveBrand();
+  resolveCampaign();
   installBrandGuard();
   decorateTemplateAndTheme();
   const main = doc.querySelector('main');

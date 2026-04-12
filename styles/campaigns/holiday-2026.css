@@ -1,0 +1,19 @@
+/**
+ * Campaign palette: holiday-2026
+ * Brand: revlon | Palette: holiday-red-green
+ * Generated from /config/brands/revlon/palettes.json — do not hand-edit.
+ * TD-1 §3.7 rule 6: file is purged after campaign flightEnd.
+ *
+ * Selector: compound [data-brand][data-campaign] ensures palette only
+ * applies when both brand and campaign match (no cross-brand bleed).
+ */
+
+:root[data-brand="revlon"][data-campaign="holiday-2026"] {
+  --color-primary: #8B0000;
+  --color-primary-contrast: #FFF;
+  --color-accent: #2D5A27;
+  --color-accent-contrast: #FFF;
+  --color-border-focus: #8B0000;
+  --link-color: #8B0000;
+  --link-hover-color: #A50000;
+}

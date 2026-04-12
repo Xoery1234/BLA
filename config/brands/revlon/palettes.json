@@ -1,0 +1,49 @@
+{
+  "$schema": "Campaign palette manifest — TD-1 §3.7, §4.0. Declares named palettes for Revlon.",
+  "$note": "Phase A placeholder. Brand owner authors palettes; marketers reference by name. Palette-eligible tokens only — layout, spacing, decorative.* are excluded.",
+  "brand": "revlon",
+  "paletteEligibleTokens": [
+    "--color-primary",
+    "--color-primary-contrast",
+    "--color-accent",
+    "--color-accent-contrast",
+    "--color-border-focus",
+    "--link-color",
+    "--link-hover-color",
+    "--letter-spacing-display",
+    "--duration-fast",
+    "--duration-base",
+    "--heading-font-family",
+    "--body-font-family"
+  ],
+  "palettes": {
+    "base": {
+      "$description": "Default Revlon palette — matches brand tokens exactly. Used as reference.",
+      "tokens": {}
+    },
+    "holiday-red-green": {
+      "$description": "Holiday campaign — red primary shifts to warm crimson, green accent.",
+      "tokens": {
+        "--color-primary": "#8B0000",
+        "--color-primary-contrast": "#FFF",
+        "--color-accent": "#2D5A27",
+        "--color-accent-contrast": "#FFF",
+        "--color-border-focus": "#8B0000",
+        "--link-color": "#8B0000",
+        "--link-hover-color": "#A50000"
+      }
+    },
+    "summer-glow": {
+      "$description": "Summer campaign — warm coral primary, golden accent.",
+      "tokens": {
+        "--color-primary": "#FF6B47",
+        "--color-primary-contrast": "#FFF",
+        "--color-accent": "#FFD700",
+        "--color-accent-contrast": "#1A1A1A",
+        "--color-border-focus": "#FF6B47",
+        "--link-color": "#FF6B47",
+        "--link-hover-color": "#FF8566"
+      }
+    }
+  }
+}
