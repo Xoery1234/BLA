@@ -1,0 +1,16 @@
+{
+  "$schema": "Brand registry — TD-1 §3.5. Source of truth for which brands the accelerator supports.",
+  "brands": {
+    "revlon": {
+      "slug": "revlon",
+      "displayName": "Revlon",
+      "tokenFile": "/styles/brands/revlon.css",
+      "authoringRoot": "da.live/brand-accelerator/revlon-site",
+      "siteHostname": "main--revlon-site--brand-accelerator.aem.live",
+      "previewHostname": "main--revlon-site--brand-accelerator.aem.page",
+      "customDomains": [],
+      "defaultLocale": "en",
+      "enabled": true
+    }
+  }
+}

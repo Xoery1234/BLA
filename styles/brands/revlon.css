@@ -1,0 +1,174 @@
+/**
+ * Revlon brand token overrides — TD-1 §3.3, TD-2 §5
+ * Loaded lazily by resolveBrand() when data-brand="revlon" is set.
+ * Phase A PLACEHOLDER values — pending WP-T1 brand importer extraction.
+ *
+ * Token mapping: boilerplate :root variables → Revlon tokens.json values.
+ * Blocks consume only :root variables; this file is the only place
+ * brand-specific values appear (TD-1 §3.2 rule 4).
+ */
+
+[data-brand="revlon"] {
+  /* --- colors --- */
+  --background-color: #0A0A0A;
+  --light-color: #141414;
+  --dark-color: #1E1E1E;
+  --text-color: #FFF;
+  --link-color: #D71920;
+  --link-hover-color: #FF2A32;
+
+  /* --- brand semantic colors --- */
+  --color-primary: #D71920;
+  --color-primary-contrast: #FFF;
+  --color-accent: #F5E6D3;
+  --color-accent-contrast: #1A1A1A;
+  --color-surface-primary: #0A0A0A;
+  --color-surface-secondary: #141414;
+  --color-surface-tertiary: #1E1E1E;
+  --color-text-primary: #FFF;
+  --color-text-secondary: #B0B0B0;
+  --color-text-tertiary: #707070;
+  --color-border-default: #2A2A2A;
+  --color-border-focus: #D71920;
+  --color-status-error: #F44;
+  --color-status-success: #4B4;
+  --color-status-warning: #FA0;
+  --color-trust-badge: #C9A84C;
+
+  /* --- fonts --- */
+  --body-font-family: 'Revlon Sans', system-ui, sans-serif;
+  --heading-font-family: 'Revlon Display', georgia, serif;
+  --font-mono: 'JetBrains Mono', monospace;
+
+  /* --- body sizes (fluid) --- */
+  --body-font-size-m: 1rem;
+  --body-font-size-s: 0.875rem;
+  --body-font-size-xs: 0.75rem;
+
+  /* --- heading sizes (fluid clamp) --- */
+  --heading-font-size-xxl: clamp(2.5rem, 5vw + 1rem, 4.5rem);
+  --heading-font-size-xl: clamp(2rem, 3vw + 0.5rem, 3rem);
+  --heading-font-size-l: clamp(1.5rem, 2vw + 0.5rem, 2.25rem);
+  --heading-font-size-m: clamp(1.25rem, 1.5vw + 0.5rem, 1.75rem);
+  --heading-font-size-s: 1rem;
+  --heading-font-size-xs: 0.875rem;
+
+  /* --- typography tuning --- */
+  --line-height-tight: 1.15;
+  --line-height-normal: 1.5;
+  --line-height-relaxed: 1.75;
+  --letter-spacing-display: 0.02em;
+  --letter-spacing-body: 0;
+  --letter-spacing-caps: 0.08em;
+
+  /* --- spacing scale (4px base unit) --- */
+  --spacing-unit: 0.25rem;
+  --spacing-2: 0.5rem;
+  --spacing-4: 1rem;
+  --spacing-6: 1.5rem;
+  --spacing-8: 2rem;
+  --spacing-12: 3rem;
+  --spacing-16: 4rem;
+  --spacing-24: 6rem;
+  --spacing-32: 8rem;
+
+  /* --- radius (angular brand) --- */
+  --radius-none: 0;
+  --radius-sm: 2px;
+  --radius-md: 4px;
+  --radius-lg: 8px;
+  --radius-full: 9999px;
+
+  /* --- motion --- */
+  --duration-instant: 100ms;
+  --duration-fast: 200ms;
+  --duration-base: 300ms;
+  --duration-slow: 500ms;
+  --duration-reveal: 800ms;
+  --easing-default: cubic-bezier(0.4, 0, 0.2, 1);
+  --easing-enter: cubic-bezier(0, 0, 0.2, 1);
+  --easing-exit: cubic-bezier(0.4, 0, 1, 1);
+
+  /* --- elevation --- */
+  --elevation-none: none;
+  --elevation-sm: 0 1px 3px rgb(0 0 0 / 30%);
+  --elevation-md: 0 4px 12px rgb(0 0 0 / 40%);
+  --elevation-lg: 0 8px 32px rgb(0 0 0 / 50%);
+  --elevation-glow: 0 0 24px rgb(215 25 32 / 30%);
+
+  /* --- decorative (TD-1 §3.7 — brand-static, never palette-swapped) --- */
+  --gradient-hero-overlay: linear-gradient(180deg, rgb(10 10 10 / 10%) 0%, rgb(10 10 10 / 35%) 55%, rgb(10 10 10 / 65%) 100%);
+  --gradient-surface-fade: linear-gradient(180deg, #0A0A0A 0%, #141414 100%);
+  --gradient-accent-wash: linear-gradient(135deg, rgb(215 25 32 / 8%) 0%, transparent 60%);
+  --scroll-reveal-duration: 800ms;
+  --scroll-reveal-easing: cubic-bezier(0, 0, 0.2, 1);
+  --scroll-reveal-stagger: 120ms;
+  --scroll-reveal-distance: 24px;
+  --noise-opacity: 0.03;
+  --noise-blend-mode: overlay;
+  --divider-weight: 1px;
+  --divider-color: #2A2A2A;
+  --divider-style: solid;
+}
+
+/* Revlon uses dark surfaces — override section highlight for dark theme */
+[data-brand="revlon"] main .section.light,
+[data-brand="revlon"] main .section.highlight {
+  background-color: var(--light-color);
+}
+
+/* Focus ring uses brand color */
+[data-brand="revlon"] a.button:focus-visible,
+[data-brand="revlon"] button.button:focus-visible {
+  outline: 2px solid var(--color-border-focus);
+  outline-offset: 2px;
+}
+
+/* Primary button — Revlon Red fill */
+[data-brand="revlon"] a.button.primary,
+[data-brand="revlon"] button.button.primary {
+  border-color: var(--color-primary);
+  background-color: var(--color-primary);
+  color: var(--color-primary-contrast);
+}
+
+[data-brand="revlon"] a.button.primary:hover,
+[data-brand="revlon"] a.button.primary:focus-visible,
+[data-brand="revlon"] button.button.primary:hover,
+[data-brand="revlon"] button.button.primary:focus-visible {
+  border-color: #FF2A32;
+  background-color: #FF2A32;
+}
+
+/* Secondary button — ghost on dark */
+[data-brand="revlon"] a.button.secondary,
+[data-brand="revlon"] button.button.secondary {
+  border-color: var(--color-border-default);
+  background-color: transparent;
+  color: var(--text-color);
+}
+
+[data-brand="revlon"] a.button.secondary:hover,
+[data-brand="revlon"] a.button.secondary:focus-visible,
+[data-brand="revlon"] button.button.secondary:hover,
+[data-brand="revlon"] button.button.secondary:focus-visible {
+  border-color: var(--color-primary);
+  background-color: var(--color-surface-secondary);
+}
+
+/* Accent button — Revlon Red with glow */
+[data-brand="revlon"] a.button.accent,
+[data-brand="revlon"] button.button.accent {
+  border-color: var(--color-primary);
+  background-color: var(--color-primary);
+  color: var(--color-primary-contrast);
+  box-shadow: var(--elevation-glow);
+}
+
+[data-brand="revlon"] a.button.accent:hover,
+[data-brand="revlon"] a.button.accent:focus-visible,
+[data-brand="revlon"] button.button.accent:hover,
+[data-brand="revlon"] button.button.accent:focus-visible {
+  border-color: #FF2A32;
+  background-color: #FF2A32;
+}

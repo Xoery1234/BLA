@@ -12,6 +12,46 @@ import {
   loadCSS,
 } from './aem.js';
 
+/* --- Brand resolution (TD-1 §3.1, TD-2 §5) --- */
+const BRAND_SLUG_RE = /^[a-z][a-z0-9-]{1,30}$/;
+
+/**
+ * Resolves the active brand and sets data-brand on <html>.
+ * Priority: 1) <meta name="brand"> 2) hostname parse 3) fallback
+ * Brand CSS is lazy-loaded after resolution (TD-1 §3.3).
+ */
+function resolveBrand() {
+  const meta = document.querySelector('meta[name="brand"]');
+  let slug = meta && meta.content ? meta.content.trim().toLowerCase() : '';
+
+  // Fallback: extract brand from hostname (dev/preview: {branch}--{brand}-site--{org}.aem.page)
+  if (!slug || !BRAND_SLUG_RE.test(slug)) {
+    const match = window.location.hostname.match(/--([a-z][a-z0-9-]*?)-site--/);
+    if (match) { [, slug] = match; }
+  }
+
+  if (slug && BRAND_SLUG_RE.test(slug)) {
+    document.documentElement.setAttribute('data-brand', slug);
+    // Lazy-load brand CSS — only the active brand's file is requested (TD-1 §3.3)
+    loadCSS(`${window.hlx.codeBasePath}/styles/brands/${slug}.css`);
+  }
+}
+
+/**
+ * Installs a guard that prevents runtime mutation of data-brand (TD-1 §3.1).
+ * Brand is read-only after first paint.
+ */
+function installBrandGuard() {
+  const html = document.documentElement;
+  const original = html.setAttribute.bind(html);
+  html.setAttribute = (name, value) => {
+    if (name === 'data-brand' && html.hasAttribute('data-brand')) {
+      throw new TypeError('[brand-guard] data-brand is read-only after first paint (TD-1 §3.1)');
+    }
+    return original(name, value);
+  };
+}
+
 /**
  * Builds hero block and prepends to main in a new section.
  * @param {Element} main The container element
@@ -132,6 +172,8 @@ export function decorateMain(main) {
  */
 async function loadEager(doc) {
   document.documentElement.lang = 'en';
+  resolveBrand();
+  installBrandGuard();
   decorateTemplateAndTheme();
   const main = doc.querySelector('main');
   if (main) {
