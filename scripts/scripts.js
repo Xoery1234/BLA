@@ -253,3 +253,11 @@ async function loadPage() {
 }
 
 loadPage();
+
+// DA live-preview wiring — enables right-pane live preview in da.live editor
+// (no-op in production; only activates when ?dapreview is present in URL)
+(async function loadDa() {
+  if (!new URL(window.location.href).searchParams.get('dapreview')) return;
+  // eslint-disable-next-line import/no-unresolved
+  import('https://da.live/scripts/dapreview.js').then(({ default: daPreview }) => daPreview(loadPage));
+}());
