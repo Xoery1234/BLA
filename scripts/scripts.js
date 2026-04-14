@@ -19,8 +19,14 @@ const BRAND_SLUG_RE = /^[a-z][a-z0-9-]{1,30}$/;
  * Resolves the active brand and sets data-brand on <html>.
  * Priority: 1) <meta name="brand"> 2) hostname parse 3) fallback
  * Brand CSS is lazy-loaded after resolution (TD-1 §3.3).
+ * Idempotent: safe to call repeatedly (required for da.live dapreview re-invocation).
  */
 function resolveBrand() {
+  // Idempotent guard: if already resolved, skip silently.
+  // Required because dapreview.js re-runs loadPage() on every content update,
+  // and the brand-guard below would throw on a second resolve attempt.
+  if (document.documentElement.hasAttribute('data-brand')) return;
+
   const meta = document.querySelector('meta[name="brand"]');
   let slug = meta && meta.content ? meta.content.trim().toLowerCase() : '';
 
@@ -63,12 +69,18 @@ function resolveCampaign() {
 /**
  * Installs a guard that prevents runtime mutation of data-brand (TD-1 §3.1).
  * Brand is read-only after first paint.
+ * Idempotent: safe to call repeatedly (required for da.live dapreview re-invocation).
+ * Also idempotent on set — allows re-setting the same value (no-op), only throws on mutation.
  */
 function installBrandGuard() {
   const html = document.documentElement;
+  // Idempotent install guard: skip if already installed.
+  if (html.__brandGuardInstalled) return;
+  html.__brandGuardInstalled = true;
+
   const original = html.setAttribute.bind(html);
   html.setAttribute = (name, value) => {
-    if (name === 'data-brand' && html.hasAttribute('data-brand')) {
+    if (name === 'data-brand' && html.hasAttribute('data-brand') && html.getAttribute('data-brand') !== value) {
       throw new TypeError('[brand-guard] data-brand is read-only after first paint (TD-1 §3.1)');
     }
     return original(name, value);
