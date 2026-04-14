@@ -1,0 +1,8 @@
+{
+  "$schema": "Consent adapter config — TD-5 §3.4. Per-brand CMP integration.",
+  "$note": "Phase A placeholder. CMP selection TBD pending Revlon privacy/legal review.",
+  "cmp": "none",
+  "defaultState": "grant",
+  "waitForCmp": 2000,
+  "customReadFunction": null
+}

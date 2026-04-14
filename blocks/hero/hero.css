@@ -1,27 +1,32 @@
+/**
+ * Hero block — Sprint 3 (TD-1 §3.6 compliant)
+ * Consumes brand tokens via cascade only, never reads data-brand.
+ * Palette-eligible tokens (--color-primary, --link-color) shift with campaigns.
+ */
+
+/* --- container reset --- */
 .hero-container .hero-wrapper {
   max-width: unset;
   padding: 0;
 }
 
+/* --- hero layout --- */
 .hero {
   position: relative;
-  padding: 40px 24px;
-  min-height: 300px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  min-height: 60vh;
+  padding: var(--spacing-8, 2rem) var(--spacing-6, 1.5rem);
+  overflow: hidden;
+  background-color: var(--color-surface-primary, var(--background-color));
 }
 
-.hero h1 {
-  max-width: 1200px;
-  margin-left: auto;
-  margin-right: auto;
-  color: var(--background-color);
-}
-
+/* --- background image --- */
 .hero picture {
   position: absolute;
-  z-index: -1;
+  z-index: 0;
   inset: 0;
-  object-fit: cover;
-  box-sizing: border-box;
 }
 
 .hero img {
@@ -30,8 +35,118 @@
   height: 100%;
 }
 
+/* --- gradient overlay for text legibility --- */
+.hero::after {
+  content: '';
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  background: var(--gradient-hero-overlay, linear-gradient(180deg, transparent 0%, rgb(0 0 0 / 60%) 100%));
+  pointer-events: none;
+}
+
+/* --- content layer --- */
+.hero .hero-content {
+  position: relative;
+  z-index: 2;
+  max-width: 1200px;
+  margin-left: auto;
+  margin-right: auto;
+  width: 100%;
+}
+
+/* --- eyebrow --- */
+.hero .hero-eyebrow {
+  font-family: var(--body-font-family);
+  font-size: var(--body-font-size-xs, 0.75rem);
+  font-weight: 600;
+  letter-spacing: var(--letter-spacing-caps, 0.05em);
+  text-transform: uppercase;
+  color: var(--color-primary-text, var(--color-primary, var(--link-color)));
+  margin-bottom: var(--spacing-2, 0.5rem);
+}
+
+/* --- headline --- */
+.hero h1 {
+  font-family: var(--heading-font-family);
+  font-size: var(--heading-font-size-xxl);
+  line-height: var(--line-height-tight, 1.15);
+  letter-spacing: var(--letter-spacing-display, 0);
+  color: var(--color-text-primary, var(--text-color));
+  margin: 0 0 var(--spacing-4, 1rem);
+  max-width: 14ch;
+}
+
+/* --- subheadline --- */
+.hero .hero-subhead {
+  font-family: var(--body-font-family);
+  font-size: var(--body-font-size-m);
+  line-height: var(--line-height-normal, 1.5);
+  color: var(--color-text-secondary, #b0b0b0);
+  margin: 0 0 var(--spacing-8, 2rem);
+  max-width: 50ch;
+}
+
+/* --- CTA row --- */
+.hero .hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-4, 1rem);
+  align-items: center;
+}
+
+/* --- CTA primary — uses palette-eligible --color-primary --- */
+.hero .hero-actions a.button.primary,
+.hero .hero-actions button.button.primary {
+  border-color: var(--color-primary, var(--link-color));
+  background-color: var(--color-primary, var(--link-color));
+  color: var(--color-primary-contrast, var(--background-color));
+  box-shadow: var(--elevation-glow, none);
+  transition: background-color var(--duration-fast, 200ms) var(--easing-default),
+              box-shadow var(--duration-fast, 200ms) var(--easing-default);
+}
+
+.hero .hero-actions a.button.primary:hover,
+.hero .hero-actions a.button.primary:focus-visible,
+.hero .hero-actions button.button.primary:hover,
+.hero .hero-actions button.button.primary:focus-visible {
+  background-color: var(--link-hover-color);
+  border-color: var(--link-hover-color);
+}
+
+/* --- CTA secondary — ghost style --- */
+.hero .hero-actions a.button.secondary,
+.hero .hero-actions button.button.secondary {
+  border-color: var(--color-border-default, #e0e0e0);
+  background-color: transparent;
+  color: var(--color-text-primary, var(--text-color));
+  transition: border-color var(--duration-fast, 200ms) var(--easing-default),
+              background-color var(--duration-fast, 200ms) var(--easing-default);
+}
+
+.hero .hero-actions a.button.secondary:hover,
+.hero .hero-actions a.button.secondary:focus-visible,
+.hero .hero-actions button.button.secondary:hover,
+.hero .hero-actions button.button.secondary:focus-visible {
+  border-color: var(--color-primary, var(--link-color));
+  background-color: var(--color-surface-secondary, var(--light-color));
+}
+
+/* --- focus ring --- */
+.hero .hero-actions a.button:focus-visible,
+.hero .hero-actions button.button:focus-visible {
+  outline: 2px solid var(--color-border-focus, var(--link-color));
+  outline-offset: 2px;
+}
+
+/* --- desktop layout --- */
 @media (width >= 900px) {
   .hero {
-    padding: 40px 32px;
+    min-height: 80vh;
+    padding: var(--spacing-16, 4rem) var(--spacing-8, 2rem);
+  }
+
+  .hero h1 {
+    max-width: 16ch;
   }
 }

@@ -1,0 +1,198 @@
+<!--
+  R1.B Coming Soon Teaser — da.live Template
+  ============================================
+  Clone this document to create a new teaser page.
+  Follow the instructions in each section. Delete instruction
+  text (marked with ⬇ arrows) after filling in your content.
+
+  Block order is fixed: Hero → Intrigue → Email Capture → Social Proof → Footer
+  Do NOT reorder, add, or remove required blocks.
+
+  Spec: /accelerator-docs/specs/r1b-coming-soon-teaser.md
+  Authoring guide: /content/guides/authoring-guide.html
+-->
+
+<!--
+  ============================================================
+  PAGE METADATA
+  ============================================================
+  In da.live, open the metadata sheet (Sidekick → Metadata)
+  and set these fields:
+
+  | Key           | Value                                    |
+  |---------------|------------------------------------------|
+  | template      | r1b-coming-soon-teaser                   |
+  | brand         | revlon                                   |
+  | campaign      | (leave empty for default, or: holiday-2026, summer-glow) |
+  | title         | Your page title — max 60 chars           |
+  | description   | Page description for search — max 155 chars |
+  | og:image      | URL to your hero image for social shares  |
+
+  The "campaign" field switches the colour palette site-wide.
+  See the authoring guide for available palette names.
+  ============================================================
+-->
+
+<!-- ========================================================
+     HERO BLOCK
+     ======================================================== -->
+<!--
+  Hero authored structure:
+  Row 1 = hero image (drag from assets panel or paste URL)
+  Row 2 = text content: eyebrow, then H1 headline, then
+          subheadline paragraph, then CTA link(s)
+
+  ⚠ The H1 is your page title. Every page needs exactly ONE H1.
+    Format it as Heading 1 in da.live (not bold, not Heading 2).
+    If the H1 is missing or formatted wrong, the page will not
+    render correctly on preview.
+
+  Image guidance:
+  - Minimum 1600 × 900 px (16:9 ratio)
+  - Max file size 400 KB (compress with squoosh.app)
+  - Use WebP or JPEG format
+  - Alt text is required for accessibility
+-->
+<div>
+  <div class="hero">
+    <div>
+      <picture>
+        <img src="/content/dam/brand/hero-placeholder.jpg"
+             alt="⬇ Describe the image in 5-10 words for screen readers"
+             width="1600" height="900">
+      </picture>
+    </div>
+    <div>
+      <p>⬇ EYEBROW — short category label, e.g. "COMING SOON" or "NEW LAUNCH" (max 30 chars, ALL CAPS)</p>
+      <h1>⬇ Your headline goes here — one short, compelling line (max 60 chars)</h1>
+      <p>⬇ Subheadline — expand on the headline with one supporting sentence (max 140 chars)</p>
+      <p><strong><a href="#email-capture">⬇ Button label, e.g. "Get notified" or "Join the waitlist"</a></strong></p>
+    </div>
+  </div>
+</div>
+
+<!-- ========================================================
+     INTRIGUE BLOCK
+     ======================================================== -->
+<!--
+  Intrigue authored structure:
+  Each row = one teaser statement (max 80 chars each)
+  Use 2 or 3 statements. They appear as a horizontal strip
+  on desktop, stacked on mobile. Keep them short and punchy.
+
+  Good: "72-hour protection. Zero white marks."
+  Bad:  "Our new formula provides up to 72 hours of clinical
+        strength protection while leaving absolutely no white
+        marks on your clothes." (too long, save it for R2.A)
+-->
+<div>
+  <div class="intrigue">
+    <div>⬇ First teaser statement — short, intriguing, max 80 chars</div>
+    <div>⬇ Second teaser statement — different angle, max 80 chars</div>
+    <div>⬇ Third teaser statement (optional — delete this row if using only two)</div>
+  </div>
+</div>
+
+<!-- ========================================================
+     EMAIL CAPTURE BLOCK
+     ======================================================== -->
+<!--
+  Email Capture authored structure:
+  Row 1 = CTA button label (what the submit button says)
+  Row 2 = Consent text (legal copy for the checkbox)
+  Row 3 = Success message (shown after successful signup)
+  Row 4 = Form endpoint URL (get this from your developer —
+          it's the webhook that receives email signups)
+
+  ⚠ The consent text is legally required. Do not delete it.
+    If you need different consent wording, check with legal first.
+
+  ⚠ The form endpoint URL must be configured before the page
+    goes live. Without it, signups are lost. Ask your developer
+    for the webhook URL or check config/brands/revlon/forms.json.
+-->
+<div>
+  <div class="email-capture">
+    <div>⬇ Button label, e.g. "Notify me" or "Join waitlist" or "Sign up"</div>
+    <div>⬇ Consent text, e.g. "I agree to receive marketing communications from [Brand]. You can unsubscribe at any time. Privacy Policy."</div>
+    <div>⬇ Success message, e.g. "Thanks! You're on the list. We'll be in touch."</div>
+    <div><a href="https://⬇-PASTE-YOUR-WEBHOOK-URL-HERE">Form endpoint</a></div>
+  </div>
+</div>
+
+<!-- ========================================================
+     SOCIAL PROOF STRIP (OPTIONAL)
+     ======================================================== -->
+<!--
+  Social Proof authored structure:
+  Row 1 = label text (e.g. "As seen in" or "Featured by")
+  Row 2+ = one logo image per row, optionally wrapped in a link
+
+  ⚠ Delete this entire block if your teaser doesn't need
+    press/partner logos. It is optional.
+
+  Logo guidance:
+  - Max 6 logos
+  - Use monochrome/white versions for consistency
+  - Recommended: 120 × 60 px SVG or PNG with transparent background
+  - Each logo can link to the source article (optional)
+-->
+<div>
+  <div class="social-proof">
+    <div>⬇ Label, e.g. "As seen in" or "Trusted by"</div>
+    <div>
+      <picture>
+        <img src="/content/dam/brand/logo-placeholder-1.svg"
+             alt="⬇ Publication or partner name" width="120" height="60">
+      </picture>
+    </div>
+    <div>
+      <picture>
+        <img src="/content/dam/brand/logo-placeholder-2.svg"
+             alt="⬇ Publication or partner name" width="120" height="60">
+      </picture>
+    </div>
+    <div>
+      <picture>
+        <img src="/content/dam/brand/logo-placeholder-3.svg"
+             alt="⬇ Publication or partner name" width="120" height="60">
+      </picture>
+    </div>
+  </div>
+</div>
+
+<!-- ========================================================
+     SECTION METADATA
+     ======================================================== -->
+<!--
+  Section metadata controls per-section behaviour.
+  This is authored as a "Section Metadata" block table in da.live.
+
+  You typically don't need to edit this unless you're
+  changing the page's section styling. Leave as-is for
+  the default teaser layout.
+-->
+<div>
+  <div class="section-metadata">
+    <div>
+      <div>style</div>
+      <div>dark</div>
+    </div>
+  </div>
+</div>
+
+<!-- ========================================================
+     FOOTER
+     ======================================================== -->
+<!--
+  Footer is inherited from the brand shell at /footer.
+  You do NOT need to author footer content per page.
+  The footer pulls from the shared footer document automatically.
+
+  If you need to update footer links (privacy, terms, social),
+  edit the shared footer document instead. Changes apply to all pages.
+
+  Shared footer location: /footer (da.live)
+  ⚠ Footer changes affect ALL pages for this brand. Coordinate
+    with your team before editing.
+-->

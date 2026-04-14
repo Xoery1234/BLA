@@ -1,0 +1,77 @@
+/**
+ * Intrigue block — R1.B §4 item 2
+ * 2-3 short teaser statements, horizontal on desktop, stacked on mobile.
+ * Scroll-reveal animation uses brand motion tokens.
+ * TD-1 §3.6: cascade only, never reads data-brand.
+ */
+
+.intrigue-container {
+  background: var(--gradient-surface-fade, var(--color-surface-primary, var(--background-color)));
+}
+
+.intrigue {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: var(--spacing-16, 4rem) var(--spacing-6, 1.5rem);
+}
+
+.intrigue .intrigue-statements {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-8, 2rem);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.intrigue .intrigue-statement {
+  font-family: var(--heading-font-family);
+  font-size: var(--heading-font-size-m);
+  line-height: var(--line-height-tight, 1.25);
+  color: var(--color-text-primary, var(--text-color));
+  text-align: center;
+  padding: var(--spacing-4, 1rem) 0;
+  border-bottom: var(--divider-weight, 1px) var(--divider-style, solid) var(--divider-color, var(--color-border-default));
+  opacity: 0;
+  transform: translateY(var(--scroll-reveal-distance, 24px));
+  transition:
+    opacity var(--scroll-reveal-duration, 800ms) var(--scroll-reveal-easing, cubic-bezier(0, 0, 0.2, 1)),
+    transform var(--scroll-reveal-duration, 800ms) var(--scroll-reveal-easing, cubic-bezier(0, 0, 0.2, 1));
+}
+
+.intrigue .intrigue-statement:last-child {
+  border-bottom: none;
+}
+
+.intrigue .intrigue-statement.revealed {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Desktop: horizontal strip */
+@media (width >= 900px) {
+  .intrigue .intrigue-statements {
+    flex-direction: row;
+    gap: 0;
+  }
+
+  .intrigue .intrigue-statement {
+    flex: 1;
+    border-bottom: none;
+    border-right: var(--divider-weight, 1px) var(--divider-style, solid) var(--divider-color, var(--color-border-default));
+    padding: var(--spacing-4, 1rem) var(--spacing-6, 1.5rem);
+  }
+
+  .intrigue .intrigue-statement:last-child {
+    border-right: none;
+  }
+}
+
+/* Reduced motion: skip animation */
+@media (prefers-reduced-motion: reduce) {
+  .intrigue .intrigue-statement {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+}
