@@ -88,6 +88,32 @@ function installBrandGuard() {
 }
 
 /**
+ * Pre-decorates blocks with reveal classes BEFORE first paint.
+ * Prevents FOUC flicker — content starts hidden from the moment body.appear
+ * lifts display:none, and IntersectionObserver fades it in smoothly.
+ * Must run AFTER decorateSections (so .section exists) and BEFORE body.appear.
+ * @param {Element} main The container element
+ */
+function autoRevealBlocks(main) {
+  // Section-level fade-up for descriptive/single-column blocks
+  const fadeSelectors = [
+    '.trust', '.social-proof', '.intrigue', '.email-capture',
+    '.columns', '.accordion', '.tabs',
+    '.where-to-buy', '.carousel',
+  ].join(', ');
+  main.querySelectorAll(fadeSelectors).forEach((block) => {
+    const section = block.closest('.section');
+    if (section) section.classList.add('reveal');
+  });
+
+  // Grid-level stagger — class goes on the BLOCK so direct children animate
+  // (putting it on the section would stagger the single block-wrapper, which is invisible)
+  main.querySelectorAll('.product-grid, .cards').forEach((block) => {
+    block.classList.add('reveal-stagger');
+  });
+}
+
+/**
  * Builds hero block and prepends to main in a new section.
  * @param {Element} main The container element
  */
@@ -199,6 +225,7 @@ export function decorateMain(main) {
   decorateSections(main);
   decorateBlocks(main);
   decorateButtons(main);
+  autoRevealBlocks(main); // must be last — after .section wrappers exist
 }
 
 /**
@@ -210,6 +237,9 @@ async function loadEager(doc) {
   resolveBrand();
   resolveCampaign();
   installBrandGuard();
+  // Load reveal/animation styles BEFORE first paint so .reveal class has effect
+  // the moment body.appear lifts display:none. Prevents FOUC flicker.
+  loadCSS(`${window.hlx.codeBasePath}/styles/interactions.css`);
   decorateTemplateAndTheme();
   const main = doc.querySelector('main');
   if (main) {
@@ -238,8 +268,7 @@ async function loadLazy(doc) {
   const main = doc.querySelector('main');
   await loadSections(main);
 
-  // Interaction patterns — lazy load after sections so all block classes exist
-  loadCSS(`${window.hlx.codeBasePath}/styles/interactions.css`);
+  // Interaction runtime — CSS is already loaded eagerly (see loadEager)
   const { default: initInteractions } = await import('./interactions.js');
   initInteractions();
 

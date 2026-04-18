@@ -2,42 +2,20 @@
    Brand Launch Accelerator — Interaction Controller
    ES Module loaded by: scripts/scripts.js → import('./interactions.js')
 
-   Handles:
-   1. Auto-reveal class injection on EDS blocks
-   2. Scroll-triggered reveals (IntersectionObserver)
-   3. Parallax hero images
-   4. Number count-up animation
-   5. Sticky nav scroll state + progress bar
-   6. Sticky CTA visibility
+   Runtime handlers only — reveal CLASSES are applied pre-paint in scripts.js
+   (decorateMain → autoRevealBlocks) to prevent FOUC flicker.
+
+   1. Scroll-triggered reveals (IntersectionObserver)
+   2. Parallax hero images
+   3. Number count-up animation
+   4. Sticky nav scroll state + progress bar
+   5. Sticky CTA visibility
    ========================================================================== */
 
 const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 /* Detect if we're on the interaction showcase page (re-triggerable demos) */
 const isShowcase = window.location.pathname.includes('interaction-showcase');
-
-/* ── AUTO-REVEAL BLOCKS ────────────────────────────────────────────────── */
-
-function autoRevealBlocks() {
-  const revealBlocks = document.querySelectorAll(
-    '.trust, .social-proof, .intrigue, .email-capture, '
-    + '.cards, .columns, .accordion, .tabs, '
-    + '.where-to-buy, .carousel',
-  );
-  revealBlocks.forEach((block) => {
-    const section = block.closest('.section');
-    if (section && !section.classList.contains('reveal')) {
-      section.classList.add('reveal');
-    }
-  });
-
-  document.querySelectorAll('.product-grid').forEach((block) => {
-    const section = block.closest('.section');
-    if (section && !section.classList.contains('reveal-stagger')) {
-      section.classList.add('reveal-stagger');
-    }
-  });
-}
 
 /* ── SCROLL-TRIGGERED REVEALS ──────────────────────────────────────────── */
 
@@ -220,7 +198,6 @@ function initStickyCTA() {
 /* ── INIT ──────────────────────────────────────────────────────────────── */
 
 export default function initInteractions() {
-  autoRevealBlocks();
   initReveals();
   initParallax();
   initCountUp();
