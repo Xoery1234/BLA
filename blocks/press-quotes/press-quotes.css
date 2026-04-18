@@ -1,0 +1,102 @@
+/* ==========================================================================
+   Press Quotes block
+   3-5 press quotes rotating in a carousel. Trust/authority signal.
+   Block gets .reveal pre-paint via autoRevealBlocks (scripts/scripts.js).
+   ========================================================================== */
+
+.press-quotes {
+  text-align: center;
+  position: relative;
+}
+
+.press-quotes .press-quotes-track {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  overflow: hidden;
+  scroll-snap-type: x mandatory;
+}
+
+.press-quotes .press-quotes-item {
+  flex: 0 0 100%;
+  scroll-snap-align: center;
+  padding-inline: var(--spacing-6);
+  opacity: 0;
+  transition: opacity var(--duration-base) var(--easing-default);
+}
+
+.press-quotes .press-quotes-item[aria-hidden="false"] {
+  opacity: 1;
+}
+
+.press-quotes .press-quotes-item figure {
+  margin: 0;
+}
+
+.press-quotes .press-quotes-quote {
+  margin: 0 auto;
+  max-width: 32ch;
+  font-family: var(--heading-font-family);
+  font-size: clamp(1.5rem, 2vw + 1rem, var(--heading-font-size-l));
+  line-height: var(--line-height-tight);
+}
+
+.press-quotes .press-quotes-source {
+  margin-top: var(--spacing-6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-4);
+  color: var(--color-text-secondary);
+  font-size: var(--body-font-size-s);
+  flex-wrap: wrap;
+}
+
+.press-quotes .press-quotes-logo {
+  height: 20px;
+  width: auto;
+  filter: grayscale(1);
+  opacity: 0.7;
+}
+
+.press-quotes .press-quotes-source a {
+  color: inherit;
+}
+
+.press-quotes .press-quotes-dots {
+  margin-top: var(--spacing-8);
+  display: flex;
+  gap: var(--spacing-2);
+  justify-content: center;
+}
+
+.press-quotes .press-quotes-dots button {
+  width: 10px;
+  height: 10px;
+  border-radius: var(--radius-full);
+  background: var(--color-border-default);
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  transition: background var(--duration-fast) var(--easing-default);
+}
+
+.press-quotes .press-quotes-dots button:hover {
+  background: var(--color-text-tertiary);
+}
+
+.press-quotes .press-quotes-dots button[aria-selected="true"] {
+  background: var(--color-primary);
+}
+
+.press-quotes .press-quotes-dots button:focus-visible {
+  outline: 2px solid var(--color-border-focus);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .press-quotes .press-quotes-item {
+    transition: none;
+  }
+}
