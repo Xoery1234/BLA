@@ -1,0 +1,49 @@
+/* ==========================================================================
+   Product Summary block
+   Below-hero summary paragraph + 4-6 spec rows.
+   Whole block fades up via shared .reveal pattern (added by autoRevealBlocks).
+   ========================================================================== */
+
+.product-summary {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--spacing-8);
+}
+
+@media (min-width: 900px) {
+  .product-summary {
+    grid-template-columns: 5fr 4fr;
+  }
+}
+
+.product-summary .product-summary-copy {
+  margin: 0;
+  font-size: var(--body-font-size-m);
+  line-height: var(--line-height-relaxed);
+}
+
+.product-summary .product-summary-specs {
+  margin: 0;
+  display: grid;
+  gap: 0;
+  border-top: 1px solid var(--color-border-default);
+}
+
+.product-summary .product-summary-spec {
+  display: grid;
+  grid-template-columns: 1fr 2fr;
+  gap: var(--spacing-4);
+  padding: var(--spacing-4) 0;
+  border-bottom: 1px solid var(--color-border-default);
+}
+
+.product-summary .product-summary-spec dt {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-weight: 600;
+}
+
+.product-summary .product-summary-spec dd {
+  margin: 0;
+  color: var(--text-color);
+}
