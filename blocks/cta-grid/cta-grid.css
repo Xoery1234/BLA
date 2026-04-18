@@ -1,0 +1,88 @@
+/* ==========================================================================
+   CTA Grid block
+   2-3 destination cards (image + heading + blurb + cue link).
+   Cards get .hover-lift; parent gets .reveal-stagger (added by decorator).
+   ========================================================================== */
+
+.cta-grid .cta-grid-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--spacing-6);
+}
+
+@media (min-width: 600px) {
+  .cta-grid .cta-grid-list {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 900px) {
+  .cta-grid .cta-grid-list {
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--spacing-8);
+  }
+}
+
+.cta-grid .cta-grid-card {
+  display: flex;
+}
+
+.cta-grid .cta-grid-link {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-4);
+  text-decoration: none;
+  color: inherit;
+  padding: var(--spacing-6);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-primary);
+  border: 1px solid var(--color-border-default);
+  width: 100%;
+  transition: transform var(--duration-base) var(--easing-default);
+}
+
+.cta-grid .cta-grid-link:hover {
+  color: inherit;
+  text-decoration: none;
+}
+
+.cta-grid .cta-grid-link:focus-visible {
+  outline: 2px solid var(--color-border-focus);
+  outline-offset: 2px;
+}
+
+.cta-grid .cta-grid-image {
+  line-height: 0;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  background: var(--color-surface-secondary);
+}
+
+.cta-grid .cta-grid-image img {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  display: block;
+}
+
+.cta-grid .cta-grid-heading {
+  margin: 0;
+  font-size: var(--heading-font-size-m);
+  line-height: var(--line-height-tight);
+}
+
+.cta-grid .cta-grid-blurb {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: var(--body-font-size-s);
+}
+
+.cta-grid .cta-grid-cue {
+  margin-top: auto;
+  color: var(--color-primary);
+  font-weight: 600;
+  font-size: var(--body-font-size-s);
+}
