@@ -2,7 +2,7 @@
    Brand Launch Accelerator — Interaction Patterns
    Loaded by: scripts/scripts.js → loadCSS('/styles/interactions.css')
 
-   Patterns:
+   Foundational tier (1–10):
    1. Scroll-triggered reveals (fade-up, fade, scale, stagger)
    2. Hover lift (cards, products, CTAs)
    3. Parallax hero
@@ -13,6 +13,15 @@
    8. Image zoom on hover (product detail)
    9. Loading skeletons
    10. Section color transitions
+
+   Cinematic tier utilities (11–12):
+   11. Text reveal by word (.text-reveal — see also blocks/text-reveal)
+   12. Ken Burns image pan (.ken-burns)
+
+   Cinematic tier blocks live in their own folders:
+   - blocks/scene             (pinned scrollytelling stage)
+   - blocks/parallax-layers   (multi-depth parallax)
+   - blocks/horizontal-scroll (vertical → horizontal pinned scroll)
 
    All patterns respect prefers-reduced-motion.
    ========================================================================== */
@@ -28,6 +37,10 @@
      so we need the animation to feel generous rather than UI-snappy. */
   --anim-duration-accordion: 700ms;
   --anim-duration-reveal: 800ms;
+  /* Text-reveal is tuned slightly faster so a heading of 8–12 words
+     doesn't take forever to fully resolve. */
+  --anim-duration-text-reveal: 600ms;
+  --anim-stagger-text: 40ms;
   --anim-ease-default: cubic-bezier(0.4, 0, 0.2, 1);
   --anim-ease-decelerate: cubic-bezier(0, 0, 0.2, 1);
   --anim-ease-accelerate: cubic-bezier(0.4, 0, 1, 1);
@@ -37,7 +50,9 @@
   --anim-ease-reveal: cubic-bezier(0.22, 1, 0.36, 1);
   --anim-reveal-distance: 24px;
   --anim-stagger-delay: 100ms;
-  --parallax-strength: 0.15;
+  /* Parallax strength 0–1. Higher = more pronounced lag; practical range
+     0.15–0.3. Above 0.35 tends to reveal edge gaps unless scale is bumped. */
+  --parallax-strength: 0.25;
   --sticky-cta-height: 72px;
 }
 
@@ -146,11 +161,17 @@
   position: relative;
 }
 
-.parallax-hero img {
+.parallax-hero img,
+.hero img {
   transition: transform 0.1s linear;
   will-change: transform;
-  transform: scale(1.05);
   object-fit: cover;
+}
+
+/* Hero img starts with scale headroom so JS-driven translate never reveals
+   edge gaps. JS sets transform inline on scroll; this is the FOUC-safe rest. */
+.hero picture img {
+  transform: scale(1.15);
 }
 
 
@@ -339,6 +360,58 @@ main > .section:has(.color-scheme-4) {
 }
 
 
+/* ── 11. TEXT REVEAL BY WORD ──────────────────────────────────────────── */
+
+/* Apply class .text-reveal to any text-containing element. The block at
+   blocks/text-reveal does this automatically to its contents.
+   scripts/interactions.js §initTextReveal splits the text into .word spans
+   and sets staggered transition-delays inline. */
+.text-reveal .word {
+  display: inline-block;
+  opacity: 0;
+  transform: translateY(0.4em);
+  transition:
+    opacity var(--anim-duration-text-reveal) var(--anim-ease-reveal),
+    transform var(--anim-duration-text-reveal) var(--anim-ease-reveal);
+  will-change: opacity, transform;
+}
+
+.text-reveal.is-revealed .word {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+
+/* ── 12. KEN BURNS ─────────────────────────────────────────────────────── */
+
+/* Apply .ken-burns to any picture container. Pure CSS keyframe — no JS. */
+.ken-burns {
+  overflow: hidden;
+}
+
+.ken-burns img,
+.ken-burns picture {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.ken-burns img {
+  animation: ken-burns-pan 24s var(--anim-ease-default) infinite alternate;
+  transform-origin: center center;
+}
+
+@keyframes ken-burns-pan {
+  0% {
+    transform: scale(1.05) translate(0%, 0%);
+  }
+  100% {
+    transform: scale(1.15) translate(2%, -2%);
+  }
+}
+
+
 /* ── REDUCED MOTION ────────────────────────────────────────────────────── */
 
 @media (prefers-reduced-motion: reduce) {
@@ -362,7 +435,18 @@ main > .section:has(.color-scheme-4) {
     transform: none !important;
   }
 
-  .parallax-hero img {
+  .parallax-hero img,
+  .hero picture img {
+    transform: scale(1.05) !important;
+  }
+
+  .text-reveal .word {
+    opacity: 1 !important;
     transform: none !important;
+  }
+
+  .ken-burns img {
+    animation: none !important;
+    transform: scale(1.05) !important;
   }
 }

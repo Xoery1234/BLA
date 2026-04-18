@@ -1,0 +1,26 @@
+/* ==========================================================================
+   Text Reveal block — word-by-word animated headings.
+   Visual behavior defined centrally in styles/interactions.css §11, so this
+   file only adds block-level layout rules.
+   ========================================================================== */
+
+.text-reveal {
+  margin: 0;
+}
+
+.text-reveal h1,
+.text-reveal h2,
+.text-reveal h3 {
+  margin: 0;
+  font-size: clamp(2rem, 4vw + 1rem, 4.5rem);
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+  max-width: 22ch;
+}
+
+.text-reveal p {
+  margin: 0;
+  font-size: clamp(1.125rem, 0.8vw + 1rem, 1.5rem);
+  line-height: 1.4;
+  max-width: 42ch;
+}

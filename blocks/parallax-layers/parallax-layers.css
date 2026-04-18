@@ -1,0 +1,61 @@
+/* ==========================================================================
+   Parallax Layers block — true multi-depth parallax.
+   All layers are absolutely positioned and stacked. JS sets --layer-translate
+   per frame based on each layer's data-parallax-speed (see interactions.js).
+   ========================================================================== */
+
+.parallax-layers {
+  position: relative;
+  min-height: var(--layers-min-height, 500px);
+  overflow: hidden;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+.parallax-layer {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  --layer-translate: 0px;
+  transform: translate3d(0, var(--layer-translate), 0);
+  will-change: transform;
+  pointer-events: none;
+}
+
+/* Foreground layers (speed > 1) should be clickable — restore pointer events
+   on any layer that contains a link or button. */
+.parallax-layer:has(a),
+.parallax-layer:has(button) {
+  pointer-events: auto;
+}
+
+.parallax-layer picture,
+.parallax-layer img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Text/heading layers center within the block and stay readable over imagery. */
+.parallax-layer h1,
+.parallax-layer h2,
+.parallax-layer h3,
+.parallax-layer h4 {
+  margin: 0;
+  padding: var(--spacing-6, 24px) var(--spacing-8, 32px);
+  max-width: 20ch;
+  text-align: center;
+  font-size: clamp(2rem, 5vw + 1rem, 5rem);
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+  text-shadow: 0 2px 20px rgba(0, 0, 0, 0.25);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .parallax-layer {
+    transform: none !important;
+  }
+}

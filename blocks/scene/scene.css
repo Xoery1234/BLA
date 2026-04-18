@@ -1,0 +1,110 @@
+/* ==========================================================================
+   Scene block — pinned scrollytelling stage.
+   Progress-driven layer animation wired via --layer-progress (see interactions.js).
+   ========================================================================== */
+
+.scene {
+  position: relative;
+  height: var(--scene-duration, 300vh);
+  margin: 0 !important;   /* Scenes always span edge-to-edge — no section gutter */
+  padding: 0 !important;
+}
+
+.scene-stage {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow: hidden;
+  background: var(--background-color, inherit);
+  color: var(--text-color, inherit);
+}
+
+.scene-layer {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-4, 16px);
+  padding: var(--spacing-6, 24px) var(--spacing-8, 32px);
+  text-align: center;
+  /* Drive motion from progress 0–1. JS sets --layer-progress per frame.
+     Opacity: a triangular curve that peaks at lp=0.5 and falls off to 0
+     at both 0 and 1. Transform: mild y-translate that resolves to 0 at peak. */
+  --layer-progress: 0;
+  opacity: min(
+    1,
+    max(0, var(--layer-progress) * 3),
+    max(0, (1 - var(--layer-progress)) * 3)
+  );
+  transform: translate3d(
+    0,
+    calc((0.5 - var(--layer-progress)) * -32px),
+    0
+  );
+  transition:
+    opacity 60ms linear,
+    transform 60ms linear;
+  will-change: opacity, transform;
+}
+
+.scene-layer > * {
+  max-width: 64ch;
+  margin: 0;
+}
+
+.scene-layer h1,
+.scene-layer h2,
+.scene-layer h3 {
+  font-size: clamp(2rem, 4vw + 1rem, 4.5rem);
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+}
+
+.scene-layer p {
+  font-size: clamp(1rem, 0.6vw + 0.875rem, 1.25rem);
+  line-height: 1.5;
+  color: var(--text-color-secondary, inherit);
+}
+
+.scene-layer picture,
+.scene-layer img {
+  display: block;
+  max-width: min(90vw, 720px);
+  max-height: 70vh;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+}
+
+/* Mobile: reduce min-sizes so scenes still read well on portrait viewports. */
+@media (max-width: 599px) {
+  .scene-layer {
+    padding: var(--spacing-4, 16px);
+  }
+  .scene-layer picture,
+  .scene-layer img {
+    max-width: 94vw;
+    max-height: 58vh;
+  }
+}
+
+/* Reduced motion: convert pinned scrollytelling into a vertical stack so
+   all content is still readable, just without the cinematic reveal. */
+@media (prefers-reduced-motion: reduce) {
+  .scene {
+    height: auto !important;
+  }
+  .scene-stage {
+    position: relative;
+    height: auto;
+  }
+  .scene-layer {
+    position: relative;
+    inset: auto;
+    min-height: 50vh;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+}

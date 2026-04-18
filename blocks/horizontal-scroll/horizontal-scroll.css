@@ -1,0 +1,89 @@
+/* ==========================================================================
+   Horizontal Scroll block — vertical scroll → horizontal motion.
+   Desktop only (≥900px); mobile falls back to vertical stack.
+   JS sets --track-x on the track per frame (see interactions.js).
+   ========================================================================== */
+
+.horizontal-scroll {
+  position: relative;
+  /* Total scrollable height: one viewport per slide so each slide gets
+     a full scroll-height to pass through the pinned stage. */
+  height: calc((var(--slide-count, 3) + 1) * 100vh);
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+.horizontal-scroll-stage {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.horizontal-scroll-track {
+  display: flex;
+  flex-direction: row;
+  height: 100%;
+  --track-x: 0px;
+  transform: translate3d(var(--track-x), 0, 0);
+  will-change: transform;
+}
+
+.horizontal-scroll-slide {
+  flex: 0 0 100vw;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-4, 16px);
+  padding: var(--spacing-8, 32px);
+  text-align: center;
+  box-sizing: border-box;
+}
+
+.horizontal-scroll-slide > * {
+  max-width: 64ch;
+  margin: 0;
+}
+
+.horizontal-scroll-slide picture,
+.horizontal-scroll-slide img {
+  display: block;
+  max-width: min(80vw, 800px);
+  max-height: 70vh;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+}
+
+.horizontal-scroll-slide h1,
+.horizontal-scroll-slide h2,
+.horizontal-scroll-slide h3 {
+  font-size: clamp(1.75rem, 4vw + 0.75rem, 4rem);
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+}
+
+/* Mobile + reduced motion: vertical stack, no pinning, no horizontal translation. */
+@media (max-width: 899px), (prefers-reduced-motion: reduce) {
+  .horizontal-scroll {
+    height: auto;
+  }
+  .horizontal-scroll-stage {
+    position: relative;
+    height: auto;
+    overflow: visible;
+  }
+  .horizontal-scroll-track {
+    flex-direction: column;
+    height: auto;
+    transform: none !important;
+  }
+  .horizontal-scroll-slide {
+    flex: 0 0 auto;
+    height: auto;
+    min-height: 60vh;
+    padding: var(--spacing-10, 40px) var(--spacing-5, 20px);
+  }
+}
