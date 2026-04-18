@@ -29,6 +29,12 @@
     var(--color-trust-badge) var(--filled),
     var(--color-border-default) var(--filled)
   );
+
+  /* Safari 15.0–15.3 only supports -webkit-mask; 15.4+ supports unprefixed.
+     Verify pass docs/VERIFY-v1.0.md flagged this — vendor prefix kept for
+     iOS 15 audience share. */
+  /* stylelint-disable-next-line property-no-vendor-prefix */
+  -webkit-mask: url('/icons/stars-5.svg') center / contain no-repeat;
   mask: url('/icons/stars-5.svg') center / contain no-repeat;
 }
 
