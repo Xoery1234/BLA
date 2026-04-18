@@ -1,0 +1,41 @@
+/* ==========================================================================
+   Statement block
+   Single large-type manifesto: optional kicker + headline + optional sub-copy.
+   Whole block fades up via shared .reveal pattern (styles/interactions.css §1).
+   ========================================================================== */
+
+.statement {
+  text-align: center;
+  padding-block: var(--spacing-16) var(--spacing-24);
+}
+
+.statement .statement-kicker {
+  margin: 0 0 var(--spacing-4);
+  font-size: var(--body-font-size-s);
+  letter-spacing: var(--letter-spacing-caps);
+  text-transform: uppercase;
+  color: var(--color-text-secondary);
+}
+
+.statement .statement-headline {
+  margin: 0 auto;
+  max-width: 22ch;
+  font-family: var(--heading-font-family);
+  font-size: clamp(2rem, 4vw + 1rem, var(--heading-font-size-xxl));
+  font-weight: var(--heading-font-weight, 700);
+  line-height: var(--line-height-tight);
+  letter-spacing: var(--letter-spacing-display);
+  color: var(--text-color);
+}
+
+.statement .statement-sub {
+  margin: var(--spacing-6) auto 0;
+  max-width: 52ch;
+  color: var(--color-text-secondary);
+}
+
+@media (min-width: 900px) {
+  .statement {
+    padding-block: var(--spacing-24) var(--spacing-32);
+  }
+}
