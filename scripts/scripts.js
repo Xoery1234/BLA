@@ -98,11 +98,13 @@ function resolveTemplate() {
  * Idempotent: safe to call repeatedly (required for da.live dapreview re-invocation).
  * Also idempotent on set — allows re-setting the same value (no-op), only throws on mutation.
  */
+const BRAND_GUARD_KEY = Symbol.for('bla.brandGuardInstalled');
+
 function installBrandGuard() {
   const html = document.documentElement;
   // Idempotent install guard: skip if already installed.
-  if (html.__brandGuardInstalled) return;
-  html.__brandGuardInstalled = true;
+  if (html[BRAND_GUARD_KEY]) return;
+  html[BRAND_GUARD_KEY] = true;
 
   const original = html.setAttribute.bind(html);
   html.setAttribute = (name, value) => {

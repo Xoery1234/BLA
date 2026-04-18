@@ -38,7 +38,9 @@ function parseAuthoredNumber(raw) {
   const prefix = (parts[0] || '').trim();
   const suffix = (parts.slice(1).join(match[1]) || '').trim();
 
-  return { target, decimals, prefix, suffix };
+  return {
+    target, decimals, prefix, suffix,
+  };
 }
 
 export default function decorate(block) {
@@ -107,7 +109,9 @@ export default function decorate(block) {
   list.className = 'trust-stats';
   list.setAttribute('role', 'list');
 
-  stats.forEach(({ target, decimals, prefix, suffix, label }) => {
+  stats.forEach(({
+    target, decimals, prefix, suffix, label,
+  }) => {
     const li = document.createElement('li');
     li.className = 'trust-stat';
 
