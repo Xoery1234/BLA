@@ -8,6 +8,9 @@ helix-importer-ui
 *.bak
 .idea
 
+# Local MCP server config — contains PAT. Never commit.
+.mcp.json
+
 # Ensure these files are tracked
 !CLAUDE.md
 !AGENTS.md

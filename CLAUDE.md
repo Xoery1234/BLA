@@ -116,7 +116,7 @@ Each builder owns their blocks end-to-end: code + component-definition JSON + co
 
 ## GitHub MCP — commit via API, not local git
 
-This repo has the GitHub MCP server wired up (see `.mcp.json`). **Treat remote `Xoery1234/BLA:main` as the source of truth.** The local clone may drift (multiple sessions pushing, duplicate commits, lock-file permission issues inside sandboxes).
+This repo has the GitHub MCP server wired up (see `.mcp.json`, gitignored). **Treat remote `Xoery1234/BLA:main` as the source of truth.** The local clone may drift (multiple sessions pushing, duplicate commits, lock-file permission issues inside sandboxes).
 
 Default push path — use MCP, not local git:
 - `mcp__github__get_file_contents` to read files from remote before editing.
@@ -130,10 +130,29 @@ Only fall back to local `git commit` + `git push` when the change must include f
 
 If the user's local clone falls behind: tell them to run `git fetch origin && git reset --hard origin/main` from the BLA folder. Don't try to rebase their local duplicates — remote is truth.
 
+## Secrets & local config
+
+**Hard rule: no secrets in the repo. Ever.**
+
+Files that are gitignored and must stay that way:
+
+- `.mcp.json` — contains the GitHub PAT for the MCP server. Local-only. Never stage, never commit, never include in tool output.
+- `.env`, `.env.*` — any future environment files.
+- Any file with `*_SECRET`, `*_TOKEN`, `*_KEY`, or `*_CREDENTIAL` in the name or content.
+
+If you are an agent in this repo:
+
+1. Before running `git add` (or any staging operation), check that you're not adding a secret-bearing file. If you see `.mcp.json`, `.env`, or anything with a token-looking value, stop.
+2. Never echo the contents of `.mcp.json` into chat, PR descriptions, commit messages, or shared docs. The PAT is for the MCP server process only.
+3. If you suspect a secret has leaked (committed, pushed, logged, shared): tell J immediately. Recommend revoking the token at GitHub → Settings → Developer settings → Fine-grained tokens. Create a new one with the same narrow scopes (Contents:RW, PR:RW, Metadata:R, Actions:R, resource = `Xoery1234/BLA`, 90-day expiry). Paste into local `.mcp.json` only.
+4. When referencing the GitHub MCP in prose, name it but do NOT quote the token or its env var value.
+
+If the GitHub MCP stops working for a session, the most likely cause is PAT expiry or scope drift. Ask J to rotate the token and restart the Claude Code session — do not try to hard-code credentials in code or config elsewhere in the repo.
+
 ## Guardrails
 
 - NEVER modify `scripts/aem.js`
-- NEVER commit secrets, API keys, tenant credentials, or customer data
+- NEVER commit secrets, API keys, tenant credentials, or customer data. See "Secrets & local config" above.
 - NO new dependencies — vanilla JS/CSS only, no frameworks, no build step
 - Don't reinvent interaction patterns — check `interactions.js` first
 - Don't make Revlon-specific patterns that can't generalize to tenant #2
