@@ -11,6 +11,9 @@ helix-importer-ui
 # Local MCP server config — contains PAT. Never commit.
 .mcp.json
 
+# Verify pass scratch — generated artifacts, not source.
+.verify-out/
+
 # Ensure these files are tracked
 !CLAUDE.md
 !AGENTS.md
