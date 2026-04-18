@@ -22,6 +22,17 @@
       "fields": [
         { "component": "text", "name": "kicker", "label": "Kicker (optional)" },
         { "component": "richtext", "name": "headline", "label": "Headline" },
+        {
+          "component": "select",
+          "name": "headline_level",
+          "label": "Headline level",
+          "value": "h2",
+          "valueType": "string",
+          "options": [
+            { "name": "H2 (default)", "value": "h2" },
+            { "name": "H1 (use when statement is the page top)", "value": "h1" }
+          ]
+        },
         { "component": "richtext", "name": "sub", "label": "Sub-copy (optional)" }
       ]
     }
