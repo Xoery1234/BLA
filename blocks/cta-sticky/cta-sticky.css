@@ -1,0 +1,74 @@
+/* ==========================================================================
+   CTA Sticky block
+   Persistent purchase bar pinned to viewport bottom on PDP.
+   Slides in once the product-hero scrolls out of view (mobile by default;
+   opt-in desktop via [data-cta-sticky-desktop="true"] on the block).
+   Respects prefers-reduced-motion (fade instead of slide).
+   ========================================================================== */
+
+.cta-sticky {
+  position: fixed;
+  inset: auto 0 0;
+  z-index: 50;
+  background: var(--color-surface-primary);
+  border-top: 1px solid var(--color-border-default);
+  box-shadow: var(--elevation-md);
+  transform: translateY(100%);
+  transition: transform var(--duration-base) var(--easing-default);
+}
+
+.cta-sticky.is-visible {
+  transform: translateY(0);
+}
+
+.cta-sticky .cta-sticky-inner {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-4);
+  padding: var(--spacing-4) var(--spacing-6);
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.cta-sticky .cta-sticky-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.cta-sticky .cta-sticky-name {
+  margin: 0;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cta-sticky .cta-sticky-price {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: var(--body-font-size-s);
+}
+
+.cta-sticky .cta-sticky-button {
+  flex-shrink: 0;
+}
+
+/* Mobile-only by default — desktop hides unless author opts in */
+@media (min-width: 900px) {
+  .cta-sticky:not([data-cta-sticky-desktop="true"]) {
+    display: none;
+  }
+}
+
+/* Reduced motion: fade in instead of slide */
+@media (prefers-reduced-motion: reduce) {
+  .cta-sticky {
+    transform: none;
+    opacity: 0;
+    transition: opacity var(--duration-base) var(--easing-default);
+  }
+
+  .cta-sticky.is-visible {
+    opacity: 1;
+  }
+}
