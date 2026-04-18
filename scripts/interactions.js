@@ -31,6 +31,15 @@ const isShowcase = window.location.pathname.includes('interaction-showcase');
 const scrollHandlers = new Set();
 let scrollTicking = false;
 
+function onScroll() {
+  if (scrollTicking) return;
+  scrollTicking = true;
+  requestAnimationFrame(() => {
+    scrollHandlers.forEach((fn) => fn());
+    scrollTicking = false;
+  });
+}
+
 function scheduleScrollHandler(fn) {
   scrollHandlers.add(fn);
   if (scrollHandlers.size === 1) {
@@ -40,15 +49,6 @@ function scheduleScrollHandler(fn) {
   }
   // Run once immediately so initial state paints correctly
   fn();
-}
-
-function onScroll() {
-  if (scrollTicking) return;
-  scrollTicking = true;
-  requestAnimationFrame(() => {
-    scrollHandlers.forEach((fn) => fn());
-    scrollTicking = false;
-  });
 }
 
 /* ── SCROLL-TRIGGERED REVEALS ───────────────────────────────────────────── */
