@@ -1,0 +1,320 @@
+/* ==========================================================================
+   Brand Launch Accelerator — Interaction Patterns
+   Loaded by: scripts/scripts.js → loadCSS('/styles/interactions.css')
+
+   Patterns:
+   1. Scroll-triggered reveals (fade-up, fade, scale, stagger)
+   2. Hover lift (cards, products, CTAs)
+   3. Parallax hero
+   4. Number count-up (tabular-nums)
+   5. Smooth accordion (details/summary)
+   6. Sticky nav + scroll progress
+   7. Sticky CTA bar (mobile)
+   8. Image zoom on hover (product detail)
+   9. Loading skeletons
+   10. Section color transitions
+
+   All patterns respect prefers-reduced-motion.
+   ========================================================================== */
+
+
+/* ── ANIMATION TOKENS ──────────────────────────────────────────────────── */
+
+:root {
+  --anim-duration-fast: 150ms;
+  --anim-duration-base: 300ms;
+  --anim-duration-slow: 500ms;
+  --anim-duration-reveal: 700ms;
+  --anim-ease-default: cubic-bezier(0.4, 0, 0.2, 1);
+  --anim-ease-decelerate: cubic-bezier(0, 0, 0.2, 1);
+  --anim-ease-accelerate: cubic-bezier(0.4, 0, 1, 1);
+  --anim-ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --anim-reveal-distance: 40px;
+  --anim-stagger-delay: 80ms;
+  --parallax-strength: 0.15;
+  --sticky-cta-height: 72px;
+}
+
+
+/* ── 1. SCROLL-TRIGGERED REVEALS ───────────────────────────────────────── */
+
+.reveal {
+  opacity: 0;
+  transform: translateY(var(--anim-reveal-distance));
+  transition:
+    opacity var(--anim-duration-reveal) var(--anim-ease-decelerate),
+    transform var(--anim-duration-reveal) var(--anim-ease-decelerate);
+  will-change: opacity, transform;
+}
+
+.reveal.is-revealed {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Staggered children */
+.reveal-stagger > * {
+  opacity: 0;
+  transform: translateY(calc(var(--anim-reveal-distance) * 0.6));
+  transition:
+    opacity var(--anim-duration-slow) var(--anim-ease-decelerate),
+    transform var(--anim-duration-slow) var(--anim-ease-decelerate);
+}
+
+.reveal-stagger.is-revealed > *:nth-child(1) { transition-delay: 0ms; opacity: 1; transform: translateY(0); }
+.reveal-stagger.is-revealed > *:nth-child(2) { transition-delay: var(--anim-stagger-delay); opacity: 1; transform: translateY(0); }
+.reveal-stagger.is-revealed > *:nth-child(3) { transition-delay: calc(var(--anim-stagger-delay) * 2); opacity: 1; transform: translateY(0); }
+.reveal-stagger.is-revealed > *:nth-child(4) { transition-delay: calc(var(--anim-stagger-delay) * 3); opacity: 1; transform: translateY(0); }
+.reveal-stagger.is-revealed > *:nth-child(5) { transition-delay: calc(var(--anim-stagger-delay) * 4); opacity: 1; transform: translateY(0); }
+.reveal-stagger.is-revealed > *:nth-child(6) { transition-delay: calc(var(--anim-stagger-delay) * 5); opacity: 1; transform: translateY(0); }
+
+/* Fade only (no movement) */
+.reveal-fade {
+  opacity: 0;
+  transition: opacity var(--anim-duration-reveal) var(--anim-ease-decelerate);
+}
+.reveal-fade.is-revealed { opacity: 1; }
+
+/* Scale pop */
+.reveal-scale {
+  opacity: 0;
+  transform: scale(0.95);
+  transition:
+    opacity var(--anim-duration-reveal) var(--anim-ease-decelerate),
+    transform var(--anim-duration-reveal) var(--anim-ease-spring);
+}
+.reveal-scale.is-revealed { opacity: 1; transform: scale(1); }
+
+
+/* ── 2. HOVER LIFT ─────────────────────────────────────────────────────── */
+
+.hover-lift {
+  transition:
+    transform var(--anim-duration-base) var(--anim-ease-default),
+    box-shadow var(--anim-duration-base) var(--anim-ease-default);
+}
+
+.hover-lift:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--elevation-md, 0 8px 24px rgba(0, 0, 0, 0.12));
+}
+
+.hover-lift:active {
+  transform: translateY(-1px);
+  box-shadow: var(--elevation-sm, 0 2px 8px rgba(0, 0, 0, 0.08));
+}
+
+/* Product grid card hover */
+.product-grid .section > div > div {
+  transition:
+    transform var(--anim-duration-base) var(--anim-ease-default),
+    box-shadow var(--anim-duration-base) var(--anim-ease-default);
+  border-radius: var(--radius-md, 8px);
+}
+
+.product-grid .section > div > div:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.10);
+}
+
+/* CTA button hover lift */
+.hero .button.primary,
+.hero .button.accent,
+.section .button.primary {
+  transition:
+    transform var(--anim-duration-fast) var(--anim-ease-default),
+    background-color var(--anim-duration-fast) var(--anim-ease-default),
+    border-color var(--anim-duration-fast) var(--anim-ease-default);
+}
+
+.hero .button.primary:hover,
+.hero .button.accent:hover {
+  transform: translateY(-2px);
+}
+
+
+/* ── 3. PARALLAX HERO ──────────────────────────────────────────────────── */
+
+.parallax-hero {
+  overflow: hidden;
+  position: relative;
+}
+
+.parallax-hero img {
+  transition: transform 0.1s linear;
+  will-change: transform;
+  transform: scale(1.05);
+  object-fit: cover;
+}
+
+
+/* ── 4. NUMBER COUNT-UP ────────────────────────────────────────────────── */
+
+[data-count-target] {
+  font-variant-numeric: tabular-nums;
+}
+
+
+/* ── 5. SMOOTH ACCORDION ──────────────────────────────────────────────── */
+
+.accordion details {
+  overflow: hidden;
+}
+
+.accordion details > div {
+  transition: opacity var(--anim-duration-base) var(--anim-ease-default);
+}
+
+.accordion details:not([open]) > div {
+  opacity: 0;
+}
+
+.accordion details[open] > div {
+  opacity: 1;
+}
+
+.accordion summary::after {
+  content: '+';
+  display: inline-block;
+  transition: transform var(--anim-duration-base) var(--anim-ease-default);
+  margin-left: auto;
+  font-size: 1.5em;
+  line-height: 1;
+}
+
+.accordion details[open] summary::after {
+  transform: rotate(45deg);
+}
+
+
+/* ── 6. STICKY NAV + SCROLL PROGRESS ──────────────────────────────────── */
+
+header.is-scrolled {
+  box-shadow: var(--elevation-md, 0 2px 12px rgba(0, 0, 0, 0.08));
+}
+
+/* Scroll progress indicator */
+header::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  height: 2px;
+  background: var(--color-primary, var(--link-color));
+  width: var(--scroll-progress, 0%);
+  transition: width 50ms linear;
+  z-index: 1;
+}
+
+
+/* ── 7. STICKY CTA BAR (Mobile) ───────────────────────────────────────── */
+
+.sticky-cta {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 99;
+  height: var(--sticky-cta-height);
+  background: var(--background-color, #ffffff);
+  box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.10);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 24px;
+  transform: translateY(100%);
+  transition: transform var(--anim-duration-base) var(--anim-ease-decelerate);
+}
+
+.sticky-cta.is-visible {
+  transform: translateY(0);
+}
+
+@media (min-width: 900px) {
+  .sticky-cta { display: none; }
+}
+
+@media (max-width: 899px) {
+  body.has-sticky-cta {
+    padding-bottom: var(--sticky-cta-height);
+  }
+}
+
+
+/* ── 8. IMAGE ZOOM ON HOVER ────────────────────────────────────────────── */
+
+.product picture,
+.product-variants picture {
+  overflow: hidden;
+  border-radius: var(--radius-md, 8px);
+}
+
+.product img,
+.product-variants img {
+  transition: transform var(--anim-duration-slow) var(--anim-ease-decelerate);
+}
+
+@media (hover: hover) {
+  .product img:hover,
+  .product-variants img:hover {
+    transform: scale(1.06);
+  }
+}
+
+
+/* ── 9. LOADING SKELETONS ──────────────────────────────────────────────── */
+
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--light-color, #e7e5e4) 25%,
+    var(--background-color, #fafafa) 50%,
+    var(--light-color, #e7e5e4) 75%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.5s ease-in-out infinite;
+  border-radius: var(--radius-sm, 4px);
+}
+
+@keyframes skeleton-shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+
+/* ── 10. SECTION COLOR TRANSITIONS ─────────────────────────────────────── */
+
+main > .section {
+  transition:
+    background-color var(--anim-duration-slow) var(--anim-ease-default),
+    color var(--anim-duration-slow) var(--anim-ease-default);
+}
+
+
+/* ── REDUCED MOTION ────────────────────────────────────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  .reveal,
+  .reveal-scale,
+  .reveal-stagger > * {
+    opacity: 1 !important;
+    transform: none !important;
+  }
+
+  .hover-lift:hover,
+  .product-grid .section > div > div:hover {
+    transform: none !important;
+  }
+
+  .parallax-hero img {
+    transform: none !important;
+  }
+}

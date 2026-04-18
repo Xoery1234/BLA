@@ -238,6 +238,11 @@ async function loadLazy(doc) {
   const main = doc.querySelector('main');
   await loadSections(main);
 
+  // Interaction patterns — lazy load after sections so all block classes exist
+  loadCSS(`${window.hlx.codeBasePath}/styles/interactions.css`);
+  const { default: initInteractions } = await import('./interactions.js');
+  initInteractions();
+
   const { hash } = window.location;
   const element = hash ? doc.getElementById(hash.substring(1)) : false;
   if (hash && element) element.scrollIntoView();
