@@ -1,5 +1,5 @@
 <!--
-  Sidekick Library — Block Catalogue
+  Sidekick Library — Block & Page Catalogue
   ============================================
   This document powers the Sidekick Library panel.
   Sidekick reads the helix-blocks table below to populate
@@ -15,11 +15,16 @@
 
   To add a new block:
   1. Create an example page at /tools/sidekick/blocks/{block-name}
-  2. Add a row to the helix-blocks table below
+  2. Add a row to the appropriate table below
   3. Preview this page in Sidekick to refresh the library
+
+  Sections:
+  - Foundational blocks — content primitives (text, layout, grid)
+  - Cinematic blocks     — scroll-linked, sticky, parallax, scrollytelling
+  - Page templates       — pre-authored full-page scaffolds authors clone
 -->
 
-<h1>Block Library</h1>
+<h1>BLA Library</h1>
 
 <!-- helix-blocks sheet — Sidekick reads this automatically -->
 <div class="library-metadata">
@@ -29,7 +34,7 @@
   </div>
 </div>
 
-<h2>Blocks</h2>
+<h2>Foundational Blocks</h2>
 
 <table>
   <thead>
@@ -42,6 +47,10 @@
     <tr>
       <td>Hero</td>
       <td>/tools/sidekick/blocks/hero</td>
+    </tr>
+    <tr>
+      <td>Statement</td>
+      <td>/tools/sidekick/blocks/statement</td>
     </tr>
     <tr>
       <td>Intrigue</td>
@@ -74,6 +83,84 @@
     <tr>
       <td>Tabs</td>
       <td>/tools/sidekick/blocks/tabs</td>
+    </tr>
+    <tr>
+      <td>CTA Grid</td>
+      <td>/tools/sidekick/blocks/cta-grid</td>
+    </tr>
+    <tr>
+      <td>Product Hero</td>
+      <td>/tools/sidekick/blocks/product-hero</td>
+    </tr>
+    <tr>
+      <td>Product Summary</td>
+      <td>/tools/sidekick/blocks/product-summary</td>
+    </tr>
+    <tr>
+      <td>Feature Grid</td>
+      <td>/tools/sidekick/blocks/feature-grid</td>
+    </tr>
+    <tr>
+      <td>Reviews Condensed</td>
+      <td>/tools/sidekick/blocks/reviews-condensed</td>
+    </tr>
+    <tr>
+      <td>Press Quotes</td>
+      <td>/tools/sidekick/blocks/press-quotes</td>
+    </tr>
+    <tr>
+      <td>CTA Sticky</td>
+      <td>/tools/sidekick/blocks/cta-sticky</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>Cinematic Blocks</h2>
+
+<table>
+  <thead>
+    <tr>
+      <th>name</th>
+      <th>path</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Scene</td>
+      <td>/tools/sidekick/blocks/scene</td>
+    </tr>
+    <tr>
+      <td>Parallax Layers</td>
+      <td>/tools/sidekick/blocks/parallax-layers</td>
+    </tr>
+    <tr>
+      <td>Horizontal Scroll</td>
+      <td>/tools/sidekick/blocks/horizontal-scroll</td>
+    </tr>
+    <tr>
+      <td>Text Reveal</td>
+      <td>/tools/sidekick/blocks/text-reveal</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>Page Templates</h2>
+
+<table>
+  <thead>
+    <tr>
+      <th>name</th>
+      <th>path</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Home</td>
+      <td>/tools/sidekick/pages/home</td>
+    </tr>
+    <tr>
+      <td>Product Detail (PDP)</td>
+      <td>/tools/sidekick/pages/product-detail</td>
     </tr>
   </tbody>
 </table>

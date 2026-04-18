@@ -1,0 +1,56 @@
+/*
+ * Home template — cinematic narrative polish.
+ *
+ * Gated by body[data-template="home"] (see scripts/scripts.js resolveTemplate).
+ * Block CSS lives in blocks/*; this file is purely template-level polish:
+ * the section rhythm and cinematic pattern dialing that makes the home
+ * page feel like a home page rather than a generic stack of blocks.
+ *
+ * Narrative arc (see /Adobe AEM/page-templates-strategy.md Template 1):
+ *   Arrive   — hero + ken-burns
+ *   Orient   — statement
+ *   Reveal   — scene (cinematic centerpiece, 1 per page)
+ *   Prove    — trust + press-quotes
+ *   Act      — cta-grid
+ */
+
+body[data-template="home"] {
+  /* Template-specific section rhythm — wider breathing room between beats. */
+  --section-gap-template: clamp(72px, 8vw, 144px);
+}
+
+/* Hero — full-bleed, taller on home than default. Owns the full viewport. */
+body[data-template="home"] .hero-wrapper {
+  margin-top: 0;
+}
+
+body[data-template="home"] .hero {
+  min-height: 100vh;
+}
+
+/* Statement — the Orient beat. Extra whitespace above/below makes it feel intentional. */
+body[data-template="home"] .statement-wrapper {
+  padding-block: var(--section-gap-template);
+}
+
+/* Scene — the Reveal beat. The cinematic centerpiece needs headroom. */
+body[data-template="home"] .scene-wrapper {
+  margin-block: var(--section-gap-template);
+}
+
+/* Trust + Press Quotes — Prove beat, grouped rhythm. */
+body[data-template="home"] .trust-wrapper + .press-quotes-wrapper,
+body[data-template="home"] .press-quotes-wrapper + .trust-wrapper {
+  margin-top: calc(var(--section-gap-template) * -0.5);
+}
+
+/* CTA Grid — Act beat. Final screen, deserves breathing room above. */
+body[data-template="home"] .cta-grid-wrapper {
+  padding-top: var(--section-gap-template);
+}
+
+@media (max-width: 899px) {
+  body[data-template="home"] {
+    --section-gap-template: clamp(48px, 10vw, 80px);
+  }
+}

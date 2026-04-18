@@ -1,0 +1,60 @@
+/*
+ * PDP (Product Detail Page) template — conversion-focused cinematic polish.
+ *
+ * Gated by body[data-template="pdp"] (see scripts/scripts.js resolveTemplate).
+ *
+ * Narrative arc (see /Adobe AEM/page-templates-strategy.md Template 2):
+ *   Arrive   — product-hero (parallax-layers treatment)
+ *   Orient   — product-summary
+ *   Reveal   — scene (lifestyle scrollytelling, 1 per page)
+ *   Prove    — feature-grid + reviews-condensed + press-quotes
+ *   Act      — cta-sticky (sticky purchase bar on scroll)
+ */
+
+body[data-template="pdp"] {
+  --section-gap-template: clamp(48px, 6vw, 96px);
+  /* Reserve space at the bottom for the sticky CTA bar so it never obscures content. */
+  --cta-sticky-reserve: 88px;
+}
+
+/* Product hero — edge-to-edge, taller than default. No side margins. */
+body[data-template="pdp"] .product-hero-wrapper {
+  margin-top: 0;
+  margin-inline: calc(var(--section-padding) * -1);
+}
+
+body[data-template="pdp"] .product-hero {
+  min-height: 90vh;
+}
+
+/* Product summary — tight rhythm against the hero. */
+body[data-template="pdp"] .product-summary-wrapper {
+  padding-block: calc(var(--section-gap-template) * 0.75);
+}
+
+/* Scene (lifestyle) — the PDP cinematic moment. Matches home template's centerpiece feel. */
+body[data-template="pdp"] .scene-wrapper {
+  margin-block: var(--section-gap-template);
+}
+
+/* Prove beat stack — feature grid + reviews + press quotes run in a tight group. */
+body[data-template="pdp"] .feature-grid-wrapper + .reviews-condensed-wrapper,
+body[data-template="pdp"] .reviews-condensed-wrapper + .press-quotes-wrapper {
+  margin-top: calc(var(--section-gap-template) * -0.25);
+}
+
+/* Reserve footer space for sticky CTA bar so content isn't obscured at bottom. */
+body[data-template="pdp"] main {
+  padding-bottom: var(--cta-sticky-reserve);
+}
+
+@media (max-width: 899px) {
+  body[data-template="pdp"] {
+    --section-gap-template: clamp(32px, 8vw, 64px);
+    --cta-sticky-reserve: 72px;
+  }
+
+  body[data-template="pdp"] .product-hero-wrapper {
+    margin-inline: 0;
+  }
+}

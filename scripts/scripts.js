@@ -67,6 +67,32 @@ function resolveCampaign() {
 }
 
 /**
+ * Resolves the active page template and sets data-template on <body>.
+ * Source: <meta name="template"> (page-metadata row in da.live).
+ * Template CSS is lazy-loaded from /styles/templates/{slug}.css — 404 is non-fatal
+ * (pages without a template meta simply get no template-specific CSS).
+ *
+ * Why <body> not <html>? Template is page-level concern (one template per page),
+ * while brand is site-level (cascades across the whole site). Keeping the scope
+ * signals matters for mental model + avoids collision with the brand guard.
+ *
+ * See: /Adobe AEM/page-templates-strategy.md for the narrative-first template
+ * design and the current template catalogue (home, pdp, category, about,
+ * campaign, editorial).
+ */
+const TEMPLATE_SLUG_RE = /^[a-z][a-z0-9-]{1,30}$/;
+function resolveTemplate() {
+  const meta = document.querySelector('meta[name="template"]');
+  const slug = meta && meta.content ? meta.content.trim().toLowerCase() : '';
+
+  if (slug && TEMPLATE_SLUG_RE.test(slug)) {
+    document.body.setAttribute('data-template', slug);
+    // Lazy-load template CSS — 404 is non-fatal for templates not yet styled
+    loadCSS(`${window.hlx.codeBasePath}/styles/templates/${slug}.css`);
+  }
+}
+
+/**
  * Installs a guard that prevents runtime mutation of data-brand (TD-1 §3.1).
  * Brand is read-only after first paint.
  * Idempotent: safe to call repeatedly (required for da.live dapreview re-invocation).
@@ -100,6 +126,9 @@ function autoRevealBlocks(main) {
     '.trust', '.social-proof', '.intrigue', '.email-capture',
     '.columns', '.accordion', '.tabs',
     '.where-to-buy', '.carousel',
+    // New foundational blocks (page-templates cycle)
+    '.statement', '.product-summary', '.reviews-condensed',
+    '.cta-sticky', '.press-quotes',
   ].join(', ');
   main.querySelectorAll(fadeSelectors).forEach((block) => {
     const section = block.closest('.section');
@@ -108,7 +137,7 @@ function autoRevealBlocks(main) {
 
   // Grid-level stagger — class goes on the BLOCK so direct children animate
   // (putting it on the section would stagger the single block-wrapper, which is invisible)
-  main.querySelectorAll('.product-grid, .cards').forEach((block) => {
+  main.querySelectorAll('.product-grid, .cards, .feature-grid, .cta-grid').forEach((block) => {
     block.classList.add('reveal-stagger');
   });
 }
@@ -236,6 +265,7 @@ async function loadEager(doc) {
   document.documentElement.lang = 'en';
   resolveBrand();
   resolveCampaign();
+  resolveTemplate();
   installBrandGuard();
   // Load reveal/animation styles BEFORE first paint so .reveal class has effect
   // the moment body.appear lifts display:none. Prevents FOUC flicker.
