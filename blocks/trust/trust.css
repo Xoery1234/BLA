@@ -1,0 +1,62 @@
+/* ==========================================================================
+   Trust block — animated stats strip.
+   Count-up animation wired via data-count-target (see scripts/interactions.js).
+   ========================================================================== */
+
+.trust {
+  text-align: center;
+}
+
+.trust .trust-kicker {
+  margin: 0 0 24px;
+  font-size: 0.875rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-color-secondary, #57534e);
+}
+
+.trust .trust-stats {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 32px;
+}
+
+@media (min-width: 600px) {
+  .trust .trust-stats {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 40px;
+  }
+}
+
+@media (min-width: 900px) {
+  .trust .trust-stats {
+    grid-template-columns: repeat(var(--trust-stat-count, 4), 1fr);
+    gap: 48px;
+  }
+}
+
+.trust .trust-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.trust .trust-stat-value {
+  font-size: clamp(2.25rem, 4vw + 1rem, 3.5rem);
+  font-weight: var(--heading-font-weight, 700);
+  line-height: 1.05;
+  color: var(--color-primary, var(--text-color, currentColor));
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+
+.trust .trust-stat-label {
+  font-size: 0.9375rem;
+  line-height: 1.4;
+  color: var(--text-color-secondary, #57534e);
+  max-width: 22ch;
+}

@@ -24,13 +24,16 @@
   --anim-duration-fast: 150ms;
   --anim-duration-base: 300ms;
   --anim-duration-slow: 500ms;
-  --anim-duration-reveal: 700ms;
+  --anim-duration-reveal: 800ms;
   --anim-ease-default: cubic-bezier(0.4, 0, 0.2, 1);
   --anim-ease-decelerate: cubic-bezier(0, 0, 0.2, 1);
   --anim-ease-accelerate: cubic-bezier(0.4, 0, 1, 1);
   --anim-ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
-  --anim-reveal-distance: 40px;
-  --anim-stagger-delay: 80ms;
+  /* Softer out-curve for reveals — easeOutQuint. Decelerates gently at the end
+     so sections don't "pop" into view when they cross the viewport. */
+  --anim-ease-reveal: cubic-bezier(0.22, 1, 0.36, 1);
+  --anim-reveal-distance: 24px;
+  --anim-stagger-delay: 100ms;
   --parallax-strength: 0.15;
   --sticky-cta-height: 72px;
 }
@@ -42,8 +45,8 @@
   opacity: 0;
   transform: translateY(var(--anim-reveal-distance));
   transition:
-    opacity var(--anim-duration-reveal) var(--anim-ease-decelerate),
-    transform var(--anim-duration-reveal) var(--anim-ease-decelerate);
+    opacity var(--anim-duration-reveal) var(--anim-ease-reveal),
+    transform var(--anim-duration-reveal) var(--anim-ease-reveal);
   will-change: opacity, transform;
 }
 
@@ -55,10 +58,10 @@
 /* Staggered children */
 .reveal-stagger > * {
   opacity: 0;
-  transform: translateY(calc(var(--anim-reveal-distance) * 0.6));
+  transform: translateY(var(--anim-reveal-distance));
   transition:
-    opacity var(--anim-duration-slow) var(--anim-ease-decelerate),
-    transform var(--anim-duration-slow) var(--anim-ease-decelerate);
+    opacity var(--anim-duration-reveal) var(--anim-ease-reveal),
+    transform var(--anim-duration-reveal) var(--anim-ease-reveal);
 }
 
 .reveal-stagger.is-revealed > *:nth-child(1) { transition-delay: 0ms; opacity: 1; transform: translateY(0); }
@@ -71,16 +74,16 @@
 /* Fade only (no movement) */
 .reveal-fade {
   opacity: 0;
-  transition: opacity var(--anim-duration-reveal) var(--anim-ease-decelerate);
+  transition: opacity var(--anim-duration-reveal) var(--anim-ease-reveal);
 }
 .reveal-fade.is-revealed { opacity: 1; }
 
 /* Scale pop */
 .reveal-scale {
   opacity: 0;
-  transform: scale(0.95);
+  transform: scale(0.96);
   transition:
-    opacity var(--anim-duration-reveal) var(--anim-ease-decelerate),
+    opacity var(--anim-duration-reveal) var(--anim-ease-reveal),
     transform var(--anim-duration-reveal) var(--anim-ease-spring);
 }
 .reveal-scale.is-revealed { opacity: 1; transform: scale(1); }
@@ -161,25 +164,40 @@
   overflow: hidden;
 }
 
-.accordion details > div {
-  transition: opacity var(--anim-duration-base) var(--anim-ease-default);
+/* <details> hides its non-summary children when closed, so an opacity
+   transition on them has nothing to animate. Instead we animate on open
+   with a keyframe that slides + fades the content in from above. */
+.accordion details[open] > div,
+.accordion details[open] > p,
+.accordion details[open] > ul,
+.accordion details[open] > ol {
+  animation: accordion-slide-in var(--anim-duration-slow) var(--anim-ease-reveal) both;
 }
 
-.accordion details:not([open]) > div {
-  opacity: 0;
+@keyframes accordion-slide-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
-.accordion details[open] > div {
-  opacity: 1;
+.accordion summary {
+  cursor: pointer;
+  transition: color var(--anim-duration-slow) var(--anim-ease-reveal);
 }
 
 .accordion summary::after {
   content: '+';
   display: inline-block;
-  transition: transform var(--anim-duration-base) var(--anim-ease-default);
+  transition: transform var(--anim-duration-slow) var(--anim-ease-reveal);
   margin-left: auto;
   font-size: 1.5em;
   line-height: 1;
+  transform-origin: center;
 }
 
 .accordion details[open] summary::after {
