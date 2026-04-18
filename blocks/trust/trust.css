@@ -8,11 +8,20 @@
 }
 
 .trust .trust-kicker {
-  margin: 0 0 24px;
-  font-size: 0.875rem;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--text-color-secondary, #57534e);
+  margin: 0 0 8px;
+  font-size: var(--heading-font-size-m, 1.5rem);
+  font-family: var(--heading-font-family, inherit);
+  font-weight: var(--heading-font-weight, 700);
+  line-height: 1.2;
+  color: var(--text-color, inherit);
+}
+
+.trust .trust-kicker-sub {
+  margin: 0 auto 32px;
+  max-width: 56ch;
+  font-size: 0.9375rem;
+  line-height: 1.5;
+  color: var(--color-text-secondary, #57534e);
 }
 
 .trust .trust-stats {

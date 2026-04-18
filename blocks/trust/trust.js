@@ -42,32 +42,52 @@ function parseAuthoredNumber(raw) {
 }
 
 export default function decorate(block) {
-  const rows = [...block.children];
+  // Flatten — look at every grandchild cell regardless of row grouping.
+  // Supports two authoring layouts:
+  //   A) One row per stat, col1=number, col2=label
+  //   B) One row, many cells, each cell has <strong>number</strong> + <p>label</p>
+  const cells = [...block.querySelectorAll(':scope > div > div')];
   const fragment = document.createDocumentFragment();
 
   let kickerText = '';
+  let kickerSubText = '';
   const stats = [];
 
-  rows.forEach((row) => {
-    const cells = [...row.children];
-    const first = cells[0];
-    const second = cells[1];
+  cells.forEach((cell) => {
+    const heading = cell.querySelector('h1, h2, h3, h4, h5, h6');
+    const strong = cell.querySelector('strong');
 
-    const firstText = (first ? first.textContent : '').trim();
-    const parsed = parseAuthoredNumber(firstText);
-
-    if (!parsed) {
-      // Label-only row → treat as kicker (first one wins)
-      if (firstText && !kickerText && cells.length === 1) {
-        kickerText = firstText;
+    // Cell with a heading and no number → kicker (intro text).
+    if (heading && !strong) {
+      if (!kickerText) {
+        kickerText = heading.textContent.trim();
+        const para = cell.querySelector('p');
+        if (para) kickerSubText = para.textContent.trim();
       }
       return;
     }
 
-    stats.push({
-      ...parsed,
-      label: second ? second.textContent.trim() : '',
+    // Number source: prefer <strong> (bolded number), else first line of cell text.
+    const numberSource = strong
+      ? strong.textContent
+      : (cell.textContent.split('\n').find((s) => s.trim()) || '');
+    const parsed = parseAuthoredNumber(numberSource);
+    if (!parsed) return;
+
+    // Label: any <p> that doesn't contain the <strong>.
+    let label = '';
+    [...cell.querySelectorAll('p')].forEach((p) => {
+      if (strong && p.contains(strong)) return;
+      const t = p.textContent.trim();
+      if (t) label += (label ? ' ' : '') + t;
     });
+    // Fallback: plain text that wasn't in any <p>
+    if (!label && !strong) {
+      const rest = cell.textContent.split('\n').slice(1).join(' ').trim();
+      if (rest) label = rest;
+    }
+
+    stats.push({ ...parsed, label });
   });
 
   if (kickerText) {
@@ -75,6 +95,12 @@ export default function decorate(block) {
     kicker.className = 'trust-kicker';
     kicker.textContent = kickerText;
     fragment.append(kicker);
+  }
+  if (kickerSubText) {
+    const sub = document.createElement('p');
+    sub.className = 'trust-kicker-sub';
+    sub.textContent = kickerSubText;
+    fragment.append(sub);
   }
 
   const list = document.createElement('ul');

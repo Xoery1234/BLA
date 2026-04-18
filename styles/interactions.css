@@ -24,6 +24,9 @@
   --anim-duration-fast: 150ms;
   --anim-duration-base: 300ms;
   --anim-duration-slow: 500ms;
+  /* Accordion gets its own slower token — native <details> snaps open/close,
+     so we need the animation to feel generous rather than UI-snappy. */
+  --anim-duration-accordion: 700ms;
   --anim-duration-reveal: 800ms;
   --anim-ease-default: cubic-bezier(0.4, 0, 0.2, 1);
   --anim-ease-decelerate: cubic-bezier(0, 0, 0.2, 1);
@@ -171,7 +174,7 @@
 .accordion details[open] > p,
 .accordion details[open] > ul,
 .accordion details[open] > ol {
-  animation: accordion-slide-in var(--anim-duration-slow) var(--anim-ease-reveal) both;
+  animation: accordion-slide-in var(--anim-duration-accordion) var(--anim-ease-reveal) both;
 }
 
 @keyframes accordion-slide-in {
@@ -187,13 +190,13 @@
 
 .accordion summary {
   cursor: pointer;
-  transition: color var(--anim-duration-slow) var(--anim-ease-reveal);
+  transition: color var(--anim-duration-accordion) var(--anim-ease-reveal);
 }
 
 .accordion summary::after {
   content: '+';
   display: inline-block;
-  transition: transform var(--anim-duration-slow) var(--anim-ease-reveal);
+  transition: transform var(--anim-duration-accordion) var(--anim-ease-reveal);
   margin-left: auto;
   font-size: 1.5em;
   line-height: 1;
@@ -306,6 +309,33 @@ main > .section {
   transition:
     background-color var(--anim-duration-slow) var(--anim-ease-default),
     color var(--anim-duration-slow) var(--anim-ease-default);
+}
+
+/* Color scheme palettes — authored as .color-scheme-2/3/4 on a block.
+   :has() hoists the style to the containing section so the full-bleed band
+   picks up the color, and pattern 10's transition smooths the change. */
+main > .section:has(.color-scheme-2) {
+  background-color: var(--color-surface-secondary, #141414);
+  color: var(--color-text-primary, inherit);
+}
+
+main > .section:has(.color-scheme-3) {
+  background-color: var(--color-accent, #f5e6d3);
+  color: var(--color-accent-contrast, #1a1a1a);
+}
+
+main > .section:has(.color-scheme-4) {
+  background-color: var(--color-primary, var(--link-color));
+  color: var(--color-primary-contrast, #ffffff);
+}
+
+/* Sections that claim a scheme should span edge-to-edge so the color
+   reads as a true section break rather than an inset card. */
+main > .section:has(.color-scheme-2),
+main > .section:has(.color-scheme-3),
+main > .section:has(.color-scheme-4) {
+  margin: 0;
+  padding: var(--spacing-12, 48px) 0;
 }
 
 
