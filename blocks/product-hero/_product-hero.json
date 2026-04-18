@@ -1,0 +1,40 @@
+{
+  "definitions": [
+    {
+      "title": "Product Hero",
+      "id": "product-hero",
+      "plugins": {
+        "xwalk": {
+          "page": {
+            "resourceType": "core/franklin/components/block/v1/block",
+            "template": {
+              "name": "Product Hero",
+              "model": "product-hero"
+            }
+          }
+        }
+      }
+    }
+  ],
+  "models": [
+    {
+      "id": "product-hero",
+      "fields": [
+        { "component": "reference", "name": "image", "label": "Hero image", "valueType": "string" },
+        { "component": "text", "name": "image-alt", "label": "Image alt" },
+        { "component": "text", "name": "name", "label": "Product name", "required": true },
+        { "component": "text", "name": "tagline", "label": "Tagline" },
+        { "component": "text", "name": "shade-name", "label": "Shade name" },
+        { "component": "text", "name": "shade-hex", "label": "Shade hex (e.g. #B2333F)" },
+        { "component": "text", "name": "price", "label": "Price", "required": true },
+        { "component": "aem-content", "name": "cta-primary", "label": "Primary CTA link" },
+        { "component": "text", "name": "cta-primary-label", "label": "Primary CTA label" },
+        { "component": "aem-content", "name": "cta-secondary", "label": "Secondary CTA link" },
+        { "component": "text", "name": "cta-secondary-label", "label": "Secondary CTA label" }
+      ]
+    }
+  ],
+  "filters": [
+    { "id": "product-hero", "components": [] }
+  ]
+}

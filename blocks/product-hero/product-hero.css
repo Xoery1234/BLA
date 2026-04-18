@@ -1,0 +1,75 @@
+/* ==========================================================================
+   Product Hero block
+   PDP "arrive" beat — large product image + name + price + CTAs.
+   .product-hero-media gets .parallax (subtle); .product-hero-body gets .reveal.
+   ========================================================================== */
+
+.product-hero {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--spacing-8);
+  align-items: center;
+}
+
+@media (min-width: 900px) {
+  .product-hero {
+    grid-template-columns: 1fr 1fr;
+    gap: var(--spacing-12);
+  }
+}
+
+.product-hero .product-hero-media {
+  line-height: 0;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: var(--color-surface-secondary);
+}
+
+.product-hero .product-hero-media img {
+  width: 100%;
+  aspect-ratio: 4 / 5;
+  object-fit: cover;
+  display: block;
+}
+
+.product-hero .product-hero-name {
+  margin: 0;
+  font-size: clamp(2rem, 3vw + 1rem, var(--heading-font-size-xxl));
+  line-height: var(--line-height-tight);
+}
+
+.product-hero .product-hero-tagline {
+  margin: var(--spacing-4) 0 var(--spacing-6);
+  color: var(--color-text-secondary);
+}
+
+.product-hero .product-hero-shade {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  margin-bottom: var(--spacing-4);
+}
+
+.product-hero .product-hero-swatch {
+  width: 18px;
+  height: 18px;
+  border-radius: var(--radius-full);
+  background: var(--swatch, #000);
+  box-shadow: 0 0 0 1px rgb(0 0 0 / 10%);
+}
+
+.product-hero .product-hero-shade-name {
+  font-size: var(--body-font-size-s);
+  color: var(--color-text-secondary);
+}
+
+.product-hero .product-hero-price {
+  font-size: var(--heading-font-size-l);
+  margin: var(--spacing-2) 0 var(--spacing-6);
+}
+
+.product-hero .product-hero-cta {
+  display: flex;
+  gap: var(--spacing-4);
+  flex-wrap: wrap;
+}
