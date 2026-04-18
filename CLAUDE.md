@@ -114,6 +114,22 @@ Each builder owns their blocks end-to-end: code + component-definition JSON + co
 - Run `npm run lint` before commit, fix all errors
 - Run `/block-verify` after commit (lint + a11y + viewport + schema + preview render)
 
+## GitHub MCP — commit via API, not local git
+
+This repo has the GitHub MCP server wired up (see `.mcp.json`). **Treat remote `Xoery1234/BLA:main` as the source of truth.** The local clone may drift (multiple sessions pushing, duplicate commits, lock-file permission issues inside sandboxes).
+
+Default push path — use MCP, not local git:
+- `mcp__github__get_file_contents` to read files from remote before editing.
+- `mcp__github__push_files` for multi-file commits.
+- `mcp__github__create_or_update_file` for single-file commits.
+- `mcp__github__create_pull_request` + `pull_request_read` + `pull_request_review_write` for PRs.
+
+Before every push, fetch the current `main` SHA via MCP so the base is current. Never force-push. After every push, report the commit SHA plus the preview URL pattern `https://main--BLA--Xoery1234.aem.page/{path}`.
+
+Only fall back to local `git commit` + `git push` when the change must include files MCP can't see, or when working on a feature branch that isn't on the remote yet.
+
+If the user's local clone falls behind: tell them to run `git fetch origin && git reset --hard origin/main` from the BLA folder. Don't try to rebase their local duplicates — remote is truth.
+
 ## Guardrails
 
 - NEVER modify `scripts/aem.js`
