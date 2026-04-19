@@ -223,6 +223,20 @@ call `orchestrator.publish` → expect `LivePublishUnauthorizedError`. Only the 
 - **RTO:** 30 minutes
 - **RPO:** 5 minutes (streaming WAL replication)
 
+### 7.3 VPS bootstrap — time sync (M1)
+
+VPS clock must stay within 60s of UTC for webhook replay defense (±10 min window, adobe-mcp §8.4) and for JCS-canonicalized event signatures that truncate milliseconds (orchestrator §8.4.1) to work correctly.
+
+**Task #54 checklist addendum:**
+- Install `chrony` on the VPS (`apt-get install chrony`).
+- Enable + start `chronyd.service`; disable `systemd-timesyncd` to avoid conflicting time daemons.
+- Pool: `pool 2.pool.ntp.org iburst` (default) is sufficient.
+
+**Observability:**
+- Metric `bla_clock_skew_ms` — emitted by a node exporter or a tiny bespoke script scraped every 60s, reports `chronyc tracking` "System time" delta in ms.
+- Grafana alert: `bla_clock_skew_ms > 5000` for 5 min → page on-call.
+- At 60s+ skew the ±10 min webhook window starts eating into the real envelope; 5s alert threshold gives operator time to react before replay defense misfires.
+
 ---
 
 ## 8. Security posture (NFR-adjacent, lives here for completeness)

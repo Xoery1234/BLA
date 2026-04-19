@@ -592,7 +592,9 @@ Source: voice.json `validation_hooks.post_generation` — four checks enumerated
 
 - **Fail-closed when ledger unavailable.** If the orchestrator's cost-ledger read fails (DB down, timeout), LLM MCP **rejects** the call with `CostCapExceededError` rather than defaulting to allow. This is the fail-closed invariant from NFR §6.2.
 
-- **Per-day org cap:** $10 USD v0 / $25 USD v1 per calendar day UTC, sustained across all briefs. Tracked by a rolling-24h counter in Postgres, populated by an hourly-aggregated sum over `brief_artifacts.cost_ledger`. Alert at 80%, reject at 100%. Calendar-day reset at 00:00 UTC — briefs submitted during a reject window retry automatically at the boundary (with jitter to prevent thundering herd).
+- **Per-day org cap:** $10 USD v0 / $25 USD v1 per calendar day UTC, sustained across all briefs. Tracked via `daily_cost_ledger` row keyed on `(date_utc)` (§8.3.1 pattern). Alert at 80%, reject at 100%. Calendar-day reset at 00:00 UTC — briefs submitted during a reject window retry automatically at the boundary (with jitter to prevent thundering herd).
+
+- **Daily-cap boundary (M4).** A brief may span the UTC boundary (submit at 23:59:55Z, generate completes at 00:00:15Z). To avoid ambiguous attribution, ledger writes are keyed on the **UTC date of the request-start timestamp**, captured at the moment `generate_copy` enters the cost-projection step (§8.3.1). That date is pinned into the transaction and used for both the `FOR UPDATE` lookup and the `UPDATE` — a brief's call that starts at 23:59:55Z bills entirely against 2026-04-19, even if the Anthropic response lands at 00:00:10Z. Subsequent calls on the same brief after 00:00 use the new date naturally.
 
 - **Pricing-table staleness.** Static table in `cost-calc` reviewed monthly; automated health check compares our table to [the pricing page](https://platform.claude.com/docs/en/about-claude/pricing) and alerts on diff. If a model appears in the API that's not in our table, that tool call fails closed with `UnknownModelError`.
 

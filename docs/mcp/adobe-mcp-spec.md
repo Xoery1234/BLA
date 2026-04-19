@@ -112,6 +112,13 @@ interface SubscribeEventOutput {
 
 **Important finding.** Workfront event subscriptions are **org/object-level, NOT per-task.** You subscribe to "all TASK.UPDATE events" and filter in the callback (or via the optional `filter_expression`). The v0 subscribe call is one-per-event-type, set up at MCP startup, not per brief. Source: [Workfront Event Subscriptions](https://experienceleague.adobe.com/en/docs/workfront/using/adobe-workfront-api/event-subscriptions/event-sub-retries).
 
+**Subscription idempotency (M2).** Adobe MCP startup creates (or re-uses) subscriptions deterministically:
+- Subscription name pattern: `bla-orchestrator-{env}-{object_type}-{event_type}-{version}` — e.g. `bla-orchestrator-dev-TASK-UPDATE-v1`.
+- On boot, list existing subscriptions (`GET /attask/api/v21.0/subscrp?filter=name=bla-orchestrator-*`).
+- For each needed (object_type, event_type): if a matching subscription exists and its `callback_url` + `filter_expression` match ours → reuse; otherwise create.
+- Mismatched callback_url or filter → replace (delete old, create new). Surfaces as a `bla.audit=workfront_subscription_replaced` WARN.
+- Prevents restart-time duplicate subscriptions that would double-deliver every event and inflate dedup table writes.
+
 **Authentication.** Workfront uses **mutual TLS** (client-certificate presented by Workfront) for webhook delivery, NOT HMAC. Our webhook endpoint must terminate TLS somewhere that exposes the peer cert. See §8.4.
 
 Source: [Workfront event-sub certs](https://experienceleague.adobe.com/en/docs/workfront/using/adobe-workfront-api/api-notes/event-sub-certs).
