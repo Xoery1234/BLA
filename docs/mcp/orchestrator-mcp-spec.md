@@ -103,16 +103,44 @@ interface WorkfrontWebhookPayload {
 }
 ```
 
+#### 2.3.1 `status` vs `approvalStatus` — read only one of these for decisions
+
+Workfront approval-workflow events carry **two distinct fields that are not synonyms**. Conflating them is the most likely bug in webhook handling — spelled out here so no implementer misses it:
+
+| Field | Values | Semantic | Read for approvals? |
+|---|---|---|---|
+| `status` | `NEW` \| `INP` \| `CPL` \| `DLY` | Task lifecycle (new, in progress, complete, delayed) | **NO — observability only.** |
+| `approvalStatus` | `PND` \| `APV` \| `REJ` | Approval decision (pending, approved, rejected) | **YES — approve/reject branch.** |
+
+**The orchestrator reads `approvalStatus` only.** `status` is captured in `webhook_events.raw_payload` for observability but does not drive state transitions.
+
+**Failure mode this rule prevents:** an assignee without approval authority marks the task `CPL` (complete) without the approval chain resolving. If the orchestrator matched on `status == "CPL"`, that would spuriously trigger publish. Matching on `approvalStatus == "APV"` means only the approver, completing their step of the approval workflow, can advance the brief.
+
+**Legacy-payload guard:** some older Workfront webhook formats emit only `status` (no `approvalStatus`). Those events are logged at WARN (`bla.warn=workfront_legacy_payload`) and treated as no-op. If they ever recur in v0, flag to J — may indicate a subscription misconfiguration.
+
 Behavior:
 1. Verify mTLS client cert against the registered subscription (Adobe MCP §8.4). Fail = 401.
 2. Verify `authToken` header if present (belt-and-suspenders).
 3. Parse payload. Look up brief by `brief_artifacts.artifact_data.task_id`.
-4. Interpret `approvalStatus` transition:
-   - `APPROVED` → transition brief `under_review → approved`, trigger publish step (§2.4).
-   - `REJECTED` → transition `under_review → rejected`, emit event, terminal.
+4. Interpret `approvalStatus` transition (see §2.3.1):
+   - `APV` → transition brief `under_review → approved`, trigger publish step (§2.4).
+   - `REJ` → transition `under_review → rejected`, emit event, terminal.
+   - `PND` or absent → log, no state change (keeps legacy-payload handling explicit).
    - Other updates (comment added, assignee changed) → log, no state change.
 5. Idempotent: if a duplicate webhook arrives (same `eventTime` + same `new.ID`), return 200 without re-transitioning.
 6. Return HTTP 200 within **5 seconds** (Workfront deadline per Adobe MCP §4.1).
+
+#### 2.3.2 Webhook fixtures
+
+Shipped under `tests/fixtures/workfront-webhooks/` and used by the integration tests (§10.2):
+
+| Fixture | `status` | `approvalStatus` | Expected behavior |
+|---|---|---|---|
+| `task-approved.json` | `CPL` | `APV` | trigger publish |
+| `task-rejected.json` | `CPL` | `REJ` | trigger reject |
+| `task-pending.json` | `INP` | `PND` | no-op |
+| `task-complete-no-approval.json` | `CPL` | null/absent | no-op (the critical safety test) |
+| `task-legacy.json` | `CPL` (no `approvalStatus` field present) | — | no-op + WARN log |
 
 ### 2.4 `orchestrator.publish`
 
