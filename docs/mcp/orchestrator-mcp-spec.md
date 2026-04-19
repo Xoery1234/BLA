@@ -764,16 +764,73 @@ Every tool call accepts `request_id`. Storage: `idempotency_keys` table, 10-minu
 - Store on successful completion (not on error — errors retry freely).
 - Scope: global (not per brief).
 
-### 9.2 Concurrency
+### 9.2 Concurrency — transition classification (H9)
 
-State transitions use **optimistic locking** on `briefs.version`:
+Optimistic locking is fine when conflicts are rare. Under bursts (concurrent generate + webhook + dead-letter watcher tick on the same brief), a CRITICAL transition can lose all 3 optimistic retries and end up in `failed` — even though the intended transition never actually landed. H9's fix: classify transitions, use `SELECT FOR UPDATE` for the critical set, keep optimistic for observational appends.
+
+#### 9.2.1 CRITICAL transitions — `SELECT ... FOR UPDATE` (must succeed)
+
+These transitions drive spend authorization, approval gates, or terminal-state locks. Losing one is a correctness bug, not a retryable hiccup.
+
+| Transition | Why critical |
+|---|---|
+| `received → validated` | Rejection point for malformed briefs; failure to lock → double-validate |
+| `validated → generating` | Spend authorization (first LLM MCP call chain) |
+| `under_review → approved` | Approval gate — matching an `APV` webhook |
+| `approved → publishing` | Publish authorization (irreversible downstream side-effect) |
+| `publishing → published` | State commit after successful publish (idempotency boundary) |
+| `* → failed` | Poison state lock (prevents further transitions on a dead brief) |
+| `* → cancelled` | Operator cancel (must succeed even under churn) |
+
+**Pattern** (application code):
+
+```sql
+BEGIN;
+SELECT state, version FROM briefs WHERE brief_id = $1 FOR UPDATE;
+-- Application verifies state == $expected_from_state.
+-- If not: ROLLBACK; raise IllegalTransitionError.
+UPDATE briefs SET state = $to_state, version = version + 1, updated_at = now()
+ WHERE brief_id = $1;
+INSERT INTO brief_state_history (brief_id, from_state, to_state, actor, reason)
+     VALUES ($1, $from_state, $to_state, $actor, $reason);
+COMMIT;
+```
+
+Row-level lock holds for the duration of the transaction. Concurrent writers on the same `brief_id` block until commit; concurrent writers on different briefs proceed in parallel. Postgres `lock_timeout = 3s` on the connection — on timeout → `ConcurrencyConflictError` (retryable), exponential-backoff retry 3× with 100ms/400ms/1600ms jitter, then bubble.
+
+#### 9.2.2 OBSERVATIONAL transitions — optimistic 3× retry (can drop)
+
+Best-effort appends and metric emissions. Dropping one is a telemetry loss, not a correctness bug.
+
+| Write | Why observational |
+|---|---|
+| `brief_state_history` append (when already inside a CRITICAL tx above) | Tx-bundled with the state update; no separate lock needed |
+| `brief_artifacts` append (generated_copy, preview_url) | Additive; duplicate or missing row is tolerable |
+| `cost_ledger` append (AUDIT-ONLY appends — NOT the projection lock in §8.3.1, which is CRITICAL) | Duplicate line item surfaces in monthly reconciliation |
+| Metric/log emission | Loki/Mimir absorb dropped lines; Grafana shows the gap |
+
+**Pattern** (unchanged — existing optimistic lock on version):
+
 ```sql
 UPDATE briefs SET state = $new_state, version = version + 1, updated_at = now()
-WHERE brief_id = $1 AND version = $2;
+ WHERE brief_id = $1 AND version = $2;
 ```
-If `rowCount === 0`: raise `ConcurrencyConflictError`, retry up to 3 times with random jitter (50–500ms). After 3: bubble up.
 
-Alternative considered: row-level `SELECT FOR UPDATE`. Rejected for v0 — optimistic is simpler, fewer lock-contention bugs at low write volume. Revisit if write volume grows (v1).
+If `rowCount === 0`: `ConcurrencyConflictError`, retry 3× with 50–500ms random jitter. After 3: bubble up (but the original operation may still succeed elsewhere — the append is "drop on the floor" acceptable).
+
+#### 9.2.3 Observability
+
+- Metric `orchestrator_critical_transition_total{from, to, outcome}` where `outcome ∈ {ok, lock_timeout, illegal_transition}`.
+- Metric `orchestrator_optimistic_lock_retries_exhausted_total{operation}` — **Grafana alert `>0 for 5min`** (H9 surface).
+- Trace span `db.transition_lock` wraps every CRITICAL transition, records `lock_wait_ms` attribute.
+- Log line `bla.audit=critical_transition` on every CRITICAL commit, INFO level, with `brief_id`, `from`, `to`, `actor`, `lock_wait_ms`.
+
+#### 9.2.4 Tests (required)
+
+- Unit test per CRITICAL transition: happy path + wrong `from_state` → `IllegalTransitionError`.
+- Race test: 5 parallel webhook receivers all try `under_review → approved` on the same brief. Expect exactly one succeeds, four get `IllegalTransitionError` (not `ConcurrencyConflictError` — the first commit changes the state so the others fail their `from_state` check cleanly).
+- Lock-timeout test: hold a manual tx against a brief for 10s, fire a CRITICAL transition with `lock_timeout=3s`. Expect `ConcurrencyConflictError` after 3s, retry cycle engages, eventually succeeds or gives up after 3 attempts.
+- OBSERVATIONAL race test: 10 parallel `brief_artifacts` appends on the same brief; expect all 10 committed (additive, no conflict).
 
 ### 9.3 Webhook auth
 
