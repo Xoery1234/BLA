@@ -118,17 +118,78 @@ Workfront approval-workflow events carry **two distinct fields that are not syno
 
 **Legacy-payload guard:** some older Workfront webhook formats emit only `status` (no `approvalStatus`). Those events are logged at WARN (`bla.warn=workfront_legacy_payload`) and treated as no-op. If they ever recur in v0, flag to J — may indicate a subscription misconfiguration.
 
-Behavior:
-1. Verify mTLS client cert against the registered subscription (Adobe MCP §8.4). Fail = 401.
-2. Verify `authToken` header if present (belt-and-suspenders).
-3. Parse payload. Look up brief by `brief_artifacts.artifact_data.task_id`.
-4. Interpret `approvalStatus` transition (see §2.3.1):
-   - `APV` → transition brief `under_review → approved`, trigger publish step (§2.4).
-   - `REJ` → transition `under_review → rejected`, emit event, terminal.
-   - `PND` or absent → log, no state change (keeps legacy-payload handling explicit).
-   - Other updates (comment added, assignee changed) → log, no state change.
-5. Idempotent: if a duplicate webhook arrives (same `eventTime` + same `new.ID`), return 200 without re-transitioning.
-6. Return HTTP 200 within **5 seconds** (Workfront deadline per Adobe MCP §4.1).
+#### 2.3.3 Fast-ack + async consumer split (H6)
+
+Workfront imposes a **5-second delivery deadline** on webhook endpoints (Adobe MCP §4.1). The naïve single-handler flow — verify mTLS + parse + look up brief + transition state + commit + respond 200 — is fine at the median but **P99 breaches 5s under cold-start or concurrent-write pressure**, triggering Workfront's 11-retry storm over ~48h and inflating DB write QPS + Loki cost for the same logical event.
+
+Fix: split the handler into **fast-ack** (synchronous, SLO P99 < 2s) and **async consumer** (background, state transitions).
+
+**Stage 1 — fast-ack** (SLO: P99 < 2s = Workfront 5s budget − 3s headroom)
+
+1. Verify mTLS client cert against the registered subscription (Adobe MCP §8.4). Fail = 401, metric, abort.
+2. Verify Workfront `authToken` header if present (belt-and-suspenders, ~1ms).
+3. Compute `event_signature` per §8.4.1.
+4. `INSERT INTO webhook_events (source, event_signature, payload, mtls_verified, processed) VALUES (..., false)` with the unique constraint on `(source, event_signature)`.
+   - **Fail-open on duplicate:** `ON CONFLICT (source, event_signature) DO NOTHING` — a duplicate means we've already acked and the async consumer is handling it. Return 200 with `X-Duplicate: true`.
+5. Return HTTP 200.
+
+No brief lookup, no state transition, no downstream call in stage 1. Row is persistent — if the orchestrator crashes between the INSERT and the 200, Workfront retries, dedup catches it, consumer picks up the row either way.
+
+**Stage 2 — async consumer** (PostgreSQL LISTEN/NOTIFY)
+
+- Postgres trigger on `webhook_events` INSERT → `NOTIFY webhook_events_new` with the row id.
+- Orchestrator process subscribes via `LISTEN webhook_events_new` on startup.
+- On notify (or on the 10-second poll fallback):
+  1. `SELECT ... FROM webhook_events WHERE processed = false ORDER BY received_at FOR UPDATE SKIP LOCKED LIMIT 10;`
+  2. Parse payload. Interpret `approvalStatus` per §2.3.1:
+     - `APV` → transition brief `under_review → approved`, trigger publish step (§2.4).
+     - `REJ` → transition `under_review → rejected`, emit event, terminal.
+     - `PND` or absent → log, no state change.
+     - Other updates (comment added, assignee changed) → log, no state change.
+  3. `UPDATE webhook_events SET processed = true, processed_at = now() WHERE id = $1;`
+  4. On failure (DB error, downstream timeout): increment `attempts`, set `last_error`, return to queue. After 5 attempts → move to dead-letter (see §8.3), alert.
+
+`FOR UPDATE SKIP LOCKED` lets multiple orchestrator workers share the queue in v1 without stealing each other's rows. v0 serial — one worker.
+
+**SLO and alerting.**
+- Metric `orchestrator_webhook_ack_seconds` (histogram, labels `verified`, `duplicate`). P99 alert at >2s for 5min.
+- Metric `orchestrator_webhook_retry_received_total{event_signature}` — any non-zero increment = SLO breach investigation (Workfront only retries when we return non-2xx OR exceed 5s).
+- Metric `orchestrator_webhook_queue_depth` (gauge, scrape every 10s) from `SELECT count(*) FROM webhook_events WHERE processed = false`. Alert > 50 for 5min (backpressure signal).
+- Metric `orchestrator_webhook_dlq_total` — DLQ entries after 5 failed attempts. Alert on any increment.
+
+**Schema addendum** (applied to §4 webhook_events table):
+
+```sql
+-- Added for §2.3.3 fast-ack split:
+ALTER TABLE webhook_events
+  ADD COLUMN processed BOOLEAN NOT NULL DEFAULT false,
+  ADD COLUMN processed_at TIMESTAMPTZ,
+  ADD COLUMN attempts INTEGER NOT NULL DEFAULT 0,
+  ADD COLUMN last_error TEXT;
+
+CREATE INDEX idx_webhook_events_unprocessed
+  ON webhook_events (received_at)
+  WHERE processed = false;
+
+CREATE OR REPLACE FUNCTION notify_webhook_events_new() RETURNS TRIGGER AS $$
+BEGIN
+  PERFORM pg_notify('webhook_events_new', NEW.id::text);
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER webhook_events_notify
+  AFTER INSERT ON webhook_events
+  FOR EACH ROW
+  WHEN (NEW.mtls_verified = true)  -- don't wake consumers for unverified rows
+  EXECUTE FUNCTION notify_webhook_events_new();
+```
+
+**Load test (required).** Fire 100 webhooks in 60s. Assert:
+- 100 `webhook_events` rows, all `mtls_verified=true`, all `processed=true` within 5min.
+- `orchestrator_webhook_ack_seconds` P99 < 2s across all 100.
+- Zero `orchestrator_webhook_retry_received_total` increments (no Workfront retries fired).
+- Idempotency: replay the same 100 events; expect zero additional rows (dedup), zero additional transitions.
 
 #### 2.3.2 Webhook fixtures
 
