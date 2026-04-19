@@ -37,7 +37,7 @@ All targets are P95 under nominal load. P99 is informational. All measured end-t
 | `workfront.add_comment` | ≤ 1.5s P95 | ≤ 1s P95 | Simple create |
 | `workfront.subscribe_webhook` | ≤ 3s P95 | ≤ 2s P95 | One-time per brief or one-time at startup depending on subscription model |
 | `eds.publish_preview` | ≤ 10s P95 | ≤ 6s P95 | DA.live write + preview build; dominated by build step |
-| `eds.publish_live` | ≤ 10s P95 | ≤ 6s P95 | Promote operation; double-gate adds no meaningful latency |
+| `eds.publish_live` | ≤ 10s P95 | ≤ 6s P95 | Promote operation; triple-gate adds no meaningful latency |
 | `eds.get_config` | ≤ 1s P95 | ≤ 500ms P95 | Read-only, cacheable |
 
 ### 1.3 Orchestrator MCP
@@ -68,7 +68,7 @@ Business KPI. Measured from `orchestrator.submit_brief` returning to state = `do
 | Path | v0 target | v1 target | Notes |
 |------|-----------|-----------|-------|
 | Preview publish | ≤ 15s P95 | ≤ 8s P95 | EDS publish + state transition + observability emit |
-| Live publish (Revlon: gated off in v0) | ≤ 15s P95 | ≤ 8s P95 | Only gated behind double-gate; latency unchanged |
+| Live publish (Revlon: gated off in v0) | ≤ 15s P95 | ≤ 8s P95 | Only gated behind triple-gate (§6.2); latency unchanged |
 
 ### 2.3 Total submit → done (excludes human review)
 
@@ -166,14 +166,42 @@ Every signal visible in LGTM, under budget, with zero silent gaps.
 | Adobe MCP | 99.0% monthly | 99.5% monthly (bounded by upstream Adobe availability) |
 | Postgres | 99.5% monthly | 99.9% monthly |
 
-### 6.2 Failure semantics
+### 6.2 Live publish safety — triple-gate (v0: all three gates disabled)
 
-Non-negotiable invariants:
-- **Webhook idempotency:** identical Workfront webhook delivered 100x must transition state at most once
-- **Publish double-gate:** live publish must fail-closed; any code path that bypasses env flag OR brief metadata check is a production incident
-- **State machine:** zero silent state transitions; illegal transitions raise, log, alert
-- **Brief integrity:** once `orchestrator.submit_brief` returns a `brief_id`, the brief is durable (survives crash/restart)
-- **Cost cap:** cost caps must fail-closed; if the tokens-remaining counter is unavailable, reject rather than default-allow
+Live publish to production `aem.page` requires all three gates true:
+
+1. **Environment flag** — `BLA_ALLOW_LIVE_PUBLISH=true` on the Adobe MCP host.
+2. **Per-brief flag** — `briefs.allow_live_publish = true` in Postgres.
+3. **Per-call input ack** — `confirm_live: true` explicit in the publish tool call input.
+
+Any single gate missing → `LivePublishUnauthorizedError`, audited under `bla.audit=live_publish_denied` at WARN.
+
+Gates are AND-composed. See `docs/mcp/adobe-mcp-spec.md` §8.5 for the enforcement reference implementation.
+
+v0 default: all three gates disabled. Demo publishes to `<bla-demo>.aem.page` preview only (path `/{brand}/{brief_id}/{page_target}`), never production.
+
+#### 6.2.1 Contract test — triple-gate
+
+For each of the 7 gate-combinations where at least one gate is false:
+call `orchestrator.publish` → expect `LivePublishUnauthorizedError`. Only the `(true, true, true)` case proceeds.
+
+| Env flag | Brief flag | Call ack | Expected |
+|---|---|---|---|
+| false | false | false | reject |
+| true  | false | false | reject |
+| false | true  | false | reject |
+| false | false | true  | reject |
+| true  | true  | false | reject |
+| true  | false | true  | reject |
+| false | true  | true  | reject |
+| true  | true  | true  | proceed |
+
+#### 6.2.2 Other non-negotiable invariants
+
+- **Webhook idempotency:** identical Workfront webhook delivered 100x must transition state at most once.
+- **State machine:** zero silent state transitions; illegal transitions raise, log, alert.
+- **Brief integrity:** once `orchestrator.submit_brief` returns a `brief_id`, the brief is durable (survives crash/restart).
+- **Cost cap:** cost caps must fail-closed; if the tokens-remaining counter is unavailable, reject rather than default-allow.
 
 ### 6.3 Data durability
 
@@ -202,7 +230,7 @@ Non-negotiable invariants:
 - **Zero secrets in git.** Any commit containing an Anthropic key, Adobe client_secret, or Postgres password is a security incident requiring key rotation.
 - **IMS tokens never logged.** Scope names ok, client_id ok, token value never.
 - **Webhook signatures verified 100% of calls.** Unverified webhook = 401 + security alert.
-- **Publish live is double-gated + audit-logged.** Every live publish attempt logs env flag state, brief metadata state, and caller identity.
+- **Publish live is triple-gated + audit-logged.** Every live publish attempt logs env flag state, per-brief flag state, per-call ack state, and caller identity (see §6.2).
 - **Brief content sanitization:** brief content may contain user-authored prose; LLM prompt injection defense via system-prompt structure + output validation. Never concatenate brief body directly into system prompt.
 
 ---
@@ -216,7 +244,7 @@ Every MCP spec must answer these questions in its Observability and Error Handli
 3. Which errors are fatal vs retry-able?
 4. What metrics cover the latency and error rate for each tool?
 5. What is the fail-closed behavior when an upstream dependency is down?
-6. What invariants are enforced on the happy path (e.g., double-gate)?
+6. What invariants are enforced on the happy path (e.g., triple-gate, §6.2)?
 7. What dead-letter behavior exists for stuck briefs / failed publishes?
 
 If a spec doesn't answer these, it's incomplete — regardless of whether it resolves every TODO.
@@ -241,7 +269,7 @@ NFRs are untested until we measure them. Validation happens in Phase 1 implement
 - **Cost cap vs variant quality:** $1/brief cap may be tight if a brief needs many blocks with many variants. Monitor actual cost; revisit cap if demo briefs consistently hit it.
 - **Observability coverage vs Loki cost:** 100% trace sampling is cheap at v0 volume, expensive at v1 volume. v1 transition to head-sampling must preserve error visibility.
 - **Availability vs complexity:** 99.9% would require redundancy (multi-region Postgres, redundant VPS). v0 accepts 99.0% because demo-grade. Step-function upgrade to 99.9% happens at v1 multi-tenant milestone, not before.
-- **Double-gate vs developer velocity:** live publish double-gate adds friction during testing. Mitigation: staging env with gate defaulted on, prod env with gate defaulted off, never the reverse.
+- **Triple-gate vs developer velocity:** live publish triple-gate adds friction during testing. Mitigation: staging env with `BLA_ALLOW_LIVE_PUBLISH=true` by default, prod env with it `false` by default, never the reverse. Per-brief and per-call gates remain per-request regardless of env.
 
 ---
 

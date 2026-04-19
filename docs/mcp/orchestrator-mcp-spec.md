@@ -134,10 +134,10 @@ interface PublishOutput {
 Behavior:
 1. Pre-check: brief state must be `approved`. Otherwise `IllegalTransitionError`.
 2. If `publish_mode === "live"`, verify **triple-gate** (see §9):
-   - Env flag `ENABLE_LIVE_PUBLISH=true` on orchestrator process.
+   - Env flag `BLA_ALLOW_LIVE_PUBLISH=true` on orchestrator process.
    - Brief carries `allow_live_publish: true`.
    - Caller `request_id` is in an allowlist (orchestrator-level ack) — optional v0, ships in v1 if needed.
-   - Any failure → `LivePublishGateError`.
+   - Any failure → `LivePublishUnauthorizedError`.
 3. Transition `approved → publishing`.
 4. For each `page_target`:
    - Call `da.update_source` with the approved copy payload.
@@ -339,7 +339,7 @@ Source: [Drizzle Kit](https://orm.drizzle.team/kit-docs/overview).
 
 - Orchestrator **never** swallows an LLM MCP error silently (LLM MCP §7.4).
 - Orchestrator **is the authority** on the `allow_live_publish` brief flag (Adobe MCP §8.5 assumes orchestrator validates this upstream).
-- Orchestrator's `publish` call to Adobe MCP always passes `allow_live_publish_ack: true` ONLY after verifying its own local gates; otherwise passes `false` (which will then fail the Adobe MCP gate deliberately).
+- Orchestrator's `publish` call to Adobe MCP always passes `confirm_live: true` ONLY after verifying its own local gates; otherwise passes `false` (which will then fail the Adobe MCP gate deliberately).
 
 ---
 
@@ -466,7 +466,7 @@ class LlmUpstreamError extends OrchestratorMcpError        { /* wraps LlmMcpErro
 class AdobeUpstreamError extends OrchestratorMcpError      { /* wraps AdobeMcpError */ }
 class WebhookVerifyFailError extends OrchestratorMcpError  { retryable = false; }
 class IdempotencyReplay extends OrchestratorMcpError       { /* not really error — cached response */ }
-class LivePublishGateError extends OrchestratorMcpError    { retryable = false; }
+class LivePublishUnauthorizedError extends OrchestratorMcpError    { retryable = false; }
 class ConcurrencyConflictError extends OrchestratorMcpError{ retryable = true;  } // optimistic lock
 class CostCapExceededError extends OrchestratorMcpError    { retryable = false; }
 class DeadLetterError extends OrchestratorMcpError         { retryable = false; } // brief stuck past SLA
@@ -483,7 +483,7 @@ Upstream errors wrap the underlying `LlmMcpError` / `AdobeMcpError` preserving `
 
 **Adobe MCP calls:**
 - If `AdobeMcpError.retryable === true`: honor the underlying service's retry headers (Adobe MCP already retries internally; orchestrator retries only on timeouts).
-- If `!retryable`: classify into `failed` terminal state. Exception: `LivePublishGateError` is operator error, log + return 403.
+- If `!retryable`: classify into `failed` terminal state. Exception: `LivePublishUnauthorizedError` is operator error, log + return 403.
 
 **Workfront webhook delivery receipt:**
 - We have at most **5 seconds** to return 2xx. Our handler:
@@ -561,14 +561,14 @@ Live publish requires **ALL three** to be true — orchestrator owns gate #3 (br
 
 | # | Gate | Owner | Check location |
 |---|---|---|---|
-| 1 | Env flag `ENABLE_LIVE_PUBLISH=true` | Adobe MCP process | Adobe MCP startup + per-call |
-| 2 | Input `allow_live_publish_ack: true` | Orchestrator caller | Adobe MCP per-call |
+| 1 | Env flag `BLA_ALLOW_LIVE_PUBLISH=true` | Adobe MCP process | Adobe MCP startup + per-call |
+| 2 | Input `confirm_live: true` | Orchestrator caller | Adobe MCP per-call |
 | 3 | Brief `allow_live_publish: true` | Orchestrator (this spec) | Orchestrator `publish` per-call |
 
 Orchestrator's `publish` tool:
 - Reads `briefs.allow_live_publish` (the brief's stored value from parsed_json).
-- If `publish_mode === "live"` AND NOT `allow_live_publish` → `LivePublishGateError`, no Adobe call.
-- Passes `allow_live_publish_ack` to Adobe MCP ONLY when our gate is green.
+- If `publish_mode === "live"` AND NOT `allow_live_publish` → `LivePublishUnauthorizedError`, no Adobe call.
+- Passes `confirm_live` to Adobe MCP ONLY when our gate is green.
 
 ### 9.5 Brief content size cap
 

@@ -147,7 +147,7 @@ interface PublishLiveInput {
   brand_id: string;
   brief_id: string;
   page_target: "home" | "pdp" | "campaign-lander";
-  allow_live_publish_ack: true;      // caller must literally pass `true`
+  confirm_live: true;      // caller must literally pass `true`
   request_id?: string;
 }
 
@@ -158,10 +158,10 @@ interface PublishLiveOutput {
 ```
 
 **Double-gate (PRD v2 §4 safety invariant, non-negotiable):**
-- Env flag `ENABLE_LIVE_PUBLISH=true` must be set on the Adobe MCP process.
-- Input field `allow_live_publish_ack` must literally equal `true`.
+- Env flag `BLA_ALLOW_LIVE_PUBLISH=true` must be set on the Adobe MCP process.
+- Input field `confirm_live` must literally equal `true`.
 - AND the brief stored in orchestrator must carry `allow_live_publish: true` (orchestrator cross-checks before calling this tool — see `orchestrator-mcp-spec.md` §9).
-- If any gate fails, return HTTP 403 with `LivePublishGateError` + log at WARN.
+- If any gate fails, return HTTP 403 with `LivePublishUnauthorizedError` + log at WARN.
 
 v0 for Revlon demo: **live publish gates remain OFF**. Tool is callable (returns 403) to prove the wiring end-to-end without risk.
 
@@ -454,7 +454,7 @@ class ValidationFailError extends AdobeMcpError     { retryable = false; }  // 4
 class IsolationViolationError extends AdobeMcpError { retryable = false; }  // §8.1 guards
 class ServiceUnavailableError extends AdobeMcpError { retryable = true;  }  // 500, 502, 503
 class TimeoutError extends AdobeMcpError            { retryable = true;  }  // deadline exceeded
-class LivePublishGateError extends AdobeMcpError    { retryable = false; }  // double-gate fail
+class LivePublishUnauthorizedError extends AdobeMcpError    { retryable = false; }  // triple-gate fail (see §8.5)
 class WebhookVerifyFailError extends AdobeMcpError  { retryable = false; }  // mTLS cert invalid
 class UnknownUpstreamError extends AdobeMcpError    { retryable = false; }
 ```
@@ -470,7 +470,7 @@ class UnknownUpstreamError extends AdobeMcpError    { retryable = false; }
 | DA.live | 429, 5xx | Exp. base 1s, factor 2, max 20s | 3 | 30s |
 | IMS | 429, 5xx | Exp. base 2s, factor 2, max 15s | 3 | 20s |
 
-**Never retry:** 4xx (except 429 and 408), `AuthFailError`, `ScopeInsufficientError`, `IsolationViolationError`, `LivePublishGateError`.
+**Never retry:** 4xx (except 429 and 408), `AuthFailError`, `ScopeInsufficientError`, `IsolationViolationError`, `LivePublishUnauthorizedError`.
 
 ### 7.3 Circuit breaker
 
@@ -486,7 +486,7 @@ Half-open after 30s, single probe, close on success.
 
 - **`401`** → `AuthFailError` (log IMS token age, probably expired; force refresh + retry once).
 - **`403` + scope mentioned in body** → `ScopeInsufficientError` (bubble up — fix Dev Console, not a retry).
-- **`403` without scope detail, EDS** → `LivePublishGateError` if call was `publish_live`; else `AuthFailError`.
+- **`403` without scope detail, EDS** → `LivePublishUnauthorizedError` if call was `publish_live`; else `AuthFailError`.
 - **`404`** → `NotFoundError` (bubble up).
 - **`400`** → `ValidationFailError` (reject, include upstream detail).
 - **`429`** → `RateLimitError` (retry with `Retry-After`).
@@ -545,8 +545,8 @@ Three independent gates. ALL required for `eds.publish_live` to succeed.
 
 | # | Gate | Owner | Where enforced |
 |---|---|---|---|
-| 1 | Env var `ENABLE_LIVE_PUBLISH=true` | Adobe MCP process env | Adobe MCP startup + per-call |
-| 2 | Input `allow_live_publish_ack: true` | Caller (orchestrator) | Adobe MCP per-call |
+| 1 | Env var `BLA_ALLOW_LIVE_PUBLISH=true` | Adobe MCP process env | Adobe MCP startup + per-call |
+| 2 | Input `confirm_live: true` | Caller (orchestrator) | Adobe MCP per-call |
 | 3 | Brief `allow_live_publish: true` | Orchestrator (brief schema) | Orchestrator per-call (see `orchestrator-mcp-spec.md` §9.4) |
 
 **Fail-closed on unreadable gate state:**
@@ -554,7 +554,7 @@ Three independent gates. ALL required for `eds.publish_live` to succeed.
 - If input field missing → treat as `false` (NOT as default-true).
 - If brief metadata unreachable (orchestrator DB down) → orchestrator returns error BEFORE calling this tool; Adobe MCP never sees a gated call with missing brief state.
 
-**Any one gate failing → `LivePublishGateError` (retryable: false).**
+**Any one gate failing → `LivePublishUnauthorizedError` (retryable: false).**
 
 **Audit log (always, even on rejection):**
 - Every call to `eds.publish_live` — accepted or rejected — writes a structured log line at INFO including:
@@ -565,12 +565,12 @@ Three independent gates. ALL required for `eds.publish_live` to succeed.
   - `caller_identity` (Infisical machine identity of the calling orchestrator)
 - Log is forwarded to Loki under label `bla.audit=live_publish`. Retention: forever (audit-grade).
 
-**v0 for Revlon demo:** gates #1 and #3 both OFF. `eds.publish_live` is reachable but always returns `LivePublishGateError`. Verifies wiring without risk.
+**v0 for Revlon demo:** gates #1 and #3 both OFF. `eds.publish_live` is reachable but always returns `LivePublishUnauthorizedError`. Verifies wiring without risk.
 
 **Bypass paths checked:**
 - `eds.publish_preview` does NOT call through `eds.publish_live` internally — preview and live are independent code paths.
 - No testing shortcut; `publish_live` is the only path. Tests verify rejection by passing partial gates.
-- Staging env defaults `ENABLE_LIVE_PUBLISH=true` (so we can test the happy path); prod env defaults `false`. **Never the reverse** (per NFR §11 trade-off note).
+- Staging env defaults `BLA_ALLOW_LIVE_PUBLISH=true` (so we can test the happy path); prod env defaults `false`. **Never the reverse** (per NFR §11 trade-off note).
 
 ### 8.6 Idempotency
 
@@ -592,7 +592,7 @@ Every tool call accepts `request_id`. MCP caches `(request_id → response)` for
   - IMS token exchange round-trip.
   - Workfront task create, update status, add comment, subscribe.
   - EDS preview publish → status poll → return.
-  - EDS live publish → double-gate rejection (each gate tested independently).
+  - EDS live publish → triple-gate rejection (each of the 3 gates tested independently via the 7-row matrix in NFR §6.2.1).
   - DA.live write + read.
   - 429 triggers backoff on each service.
   - 503 + `x-error:(429)` on EDS classified as `RateLimitError`, not `ServiceUnavailableError`.
