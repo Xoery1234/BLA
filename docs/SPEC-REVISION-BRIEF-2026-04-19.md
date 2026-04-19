@@ -162,11 +162,15 @@ Only the (true, true, true) case proceeds.
 ```
 
 ### Tranche 1 acceptance
-- [ ] Patch 1.1 merged — unit test for cache boundary passes
-- [ ] Patch 1.2 merged — Opus call shape differs from Sonnet/Haiku; contract test per model
-- [ ] Patch 1.3 merged — PRD r3 reflects three auth stores
-- [ ] Patch 1.4 merged — NFR, adobe-mcp, orchestrator all say "triple-gate"
-- [ ] Append `## Tranche 1 complete — <commit-sha> <date>` to this file
+- [x] Patch 1.1 merged — `596443f` — MODEL_CACHE_MIN dispatcher; boundary test spec per model
+- [x] Patch 1.2 merged — `fc0552d` — reasoning dispatcher; Opus 4.7 uses adaptive+effort (no budget_tokens)
+- [x] Patch 1.3 merged — `cb1a67c` — PRD v2 r3: three-auth-store rewrite
+- [x] Patch 1.4 merged — `05ab53c` — NFR/adobe-mcp/orchestrator say "triple-gate"; env/input/error names harmonized
+- [x] Append `## Tranche 1 complete` to this file
+
+## Tranche 1 complete — 05ab53c 2026-04-19
+
+Closed: C1, C2, C3, H1. Four commits, one per patch, pushed to main. All CRITICAL findings resolved. Proceeding to Tranche 2 without approval pause per J's directive.
 
 ---
 
