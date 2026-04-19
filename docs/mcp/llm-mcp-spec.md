@@ -57,6 +57,16 @@ interface GenerateCopyInput {
     energy?: "low" | "medium" | "medium-high" | "high";
     formality?: string;
   };
+  reasoning?: {                // optional quality knob — see §4.2.1
+    // When caller wants deeper reasoning, it passes one of:
+    //   (a) `effort` — works on Opus 4.7, Opus 4.6, Sonnet 4.6, Opus 4.5.
+    //                  Resolves to output_config.effort in the API call.
+    //   (b) `budget_tokens` — manual extended thinking on Sonnet 4.6 / Haiku 4.5
+    //                  (deprecated on Sonnet; Opus 4.7 rejects this shape with 400).
+    // If both are passed and the selected model supports effort, effort wins.
+    effort?: "low" | "medium" | "high" | "xhigh" | "max";
+    budget_tokens?: number;    // manual thinking budget — see per-model support matrix
+  };
   variant_count?: number;      // default 1, max 5
   request_id?: string;         // for idempotency (orchestrator supplies)
 }
@@ -205,11 +215,95 @@ Source: [Infisical Node SDK](https://infisical.com/docs/sdks/languages/node).
 | `llm.summarize` | Claude Haiku 4.5 | `claude-haiku-4-5` | Claude Sonnet 4.6 on very long input |
 | `llm.transform` | Claude Sonnet 4.6 | `claude-sonnet-4-6` | Claude Haiku 4.5 |
 
-**Rationale.** Sonnet 4.6 = best price/intelligence trade at $3/$15 per MTok. Supports extended thinking + adaptive thinking. Haiku 4.5 = fastest + cheapest at $1/$5 per MTok, sufficient for summarization. **Opus 4.7 is NOT used in v0** — $5/$25 is 66% more expensive than Sonnet 4.6 and our copy tasks don't justify it. Escalate to Opus only if a specific brief tags `requires_deep_reasoning: true` (v1.1).
-
-**Important:** Opus 4.7 does NOT support extended thinking (adaptive thinking only); Sonnet 4.6 and Haiku 4.5 support both. Do not request `thinking.type: "enabled"` on Opus 4.7.
+**Rationale.** Sonnet 4.6 = best price/intelligence trade at $3/$15 per MTok. Haiku 4.5 = fastest + cheapest at $1/$5 per MTok, sufficient for summarization. **Opus 4.7 is NOT used in v0** — $5/$25 is 66% more expensive than Sonnet 4.6 and our copy tasks don't justify it. Opus escalation wired as v1.1 feature, gated on brief-level tagging.
 
 Context window: Sonnet 4.6 = 1M tokens, Haiku 4.5 = 200k, Opus 4.7 = 1M. Max output: Sonnet 4.6 = 64k, Haiku 4.5 = 64k, Opus 4.7 = 128k.
+
+### 4.2.1 Reasoning / thinking dispatcher (model capability matrix)
+
+Per-model capability matrix, verified against [adaptive thinking](https://platform.claude.com/docs/en/build-with-claude/adaptive-thinking), [effort](https://platform.claude.com/docs/en/build-with-claude/effort), and [extended thinking](https://platform.claude.com/docs/en/build-with-claude/extended-thinking) docs on 2026-04-19:
+
+| Model | `thinking: {type: "enabled", budget_tokens}` | `thinking: {type: "adaptive"}` | `output_config.effort` | Preferred shape |
+|---|---|---|---|---|
+| Opus 4.7 | **400 error** | ✓ (default) | ✓ (`low\|medium\|high\|xhigh\|max`) | adaptive + effort |
+| Sonnet 4.6 | ✓ (deprecated) | ✓ | ✓ (`low\|medium\|high\|max` — no `xhigh`) | adaptive + effort |
+| Haiku 4.5 | ✓ | not documented | not documented | manual only |
+| Opus 4.5 | ✓ | ✓ | ✓ | either |
+| Opus 4.6 | ✓ (deprecated) | ✓ | ✓ | adaptive + effort |
+
+No beta header is required for `effort` or adaptive thinking. (J's search surfaced `task-budgets-2026-03-13`; the live docs do not reference that header for this feature.)
+
+**Dispatcher — single source of truth in `packages/shared/prompt-builder/reasoning.ts`:**
+
+```ts
+export function buildReasoningConfig(
+  model: ModelId,
+  input: { effort?: Effort; budget_tokens?: number } | undefined,
+): { thinking?: ThinkingConfig; output_config?: OutputConfig } {
+  if (!input) return {};
+
+  // Opus 4.7: adaptive thinking is default. budget_tokens is a 400.
+  // Pass effort through output_config; ignore budget_tokens.
+  if (model === 'claude-opus-4-7') {
+    return input.effort
+      ? { output_config: { effort: input.effort } }
+      : {}; // no knob requested → rely on Opus 4.7 defaults
+  }
+
+  // Opus 4.6 and Sonnet 4.6: prefer effort over budget_tokens.
+  if (model === 'claude-sonnet-4-6' || model === 'claude-opus-4-6') {
+    if (input.effort) {
+      return { output_config: { effort: input.effort } };
+    }
+    if (input.budget_tokens) {
+      return {
+        thinking: { type: 'enabled', budget_tokens: input.budget_tokens },
+      };
+    }
+    return {};
+  }
+
+  // Haiku 4.5: manual extended thinking only.
+  // `effort` is not documented on Haiku 4.5 — silently drop it.
+  if (model === 'claude-haiku-4-5') {
+    if (input.budget_tokens) {
+      return {
+        thinking: { type: 'enabled', budget_tokens: input.budget_tokens },
+      };
+    }
+    return {};
+  }
+
+  // Older Claude 4 models (Opus 4.5, Sonnet 4.5): manual thinking works.
+  if (input.budget_tokens) {
+    return {
+      thinking: { type: 'enabled', budget_tokens: input.budget_tokens },
+    };
+  }
+  return {};
+}
+```
+
+**v0 use:** the dispatcher ships but is unused — v0 briefs do not set `reasoning`. The code path is tested against each model's accepted shape so that v1.1 escalation turn-on is a pure config change, not a spec rewrite.
+
+**Contract test per model (required):**
+
+```
+Test: reasoning-dispatch
+
+Opus 4.7 + effort="xhigh"        → request body contains output_config.effort="xhigh",
+                                    NO thinking block (adaptive is default).
+Opus 4.7 + budget_tokens=5000    → budget_tokens dropped, no thinking block,
+                                    warn log emitted ("opus-4-7-budget-tokens-ignored").
+Sonnet 4.6 + effort="medium"     → output_config.effort="medium", no thinking block.
+Sonnet 4.6 + budget_tokens=3000  → thinking: {type:"enabled", budget_tokens:3000}.
+Sonnet 4.6 + effort + budget     → effort wins, budget_tokens dropped.
+Haiku 4.5 + budget_tokens=1500   → thinking: {type:"enabled", budget_tokens:1500}.
+Haiku 4.5 + effort="medium"      → effort dropped (not supported), no thinking block.
+<any> + undefined                → empty object (no knobs).
+```
+
+**SDK-typed guard preferred over runtime check.** If `@anthropic-ai/sdk` exposes per-model parameter types that make `buildReasoningConfig` output → `MessagesCreateParams` a compile-time type error for invalid combinations, prefer that. Note the SDK major version requirement (~1.x+ when the effort+adaptive split landed; confirm at dependency pin time).
 
 ### 4.3 Prompt caching
 
@@ -575,7 +669,7 @@ Intentionally left open in v0 (documented for v1 pickup):
 - **Streaming responses.** Messages API supports streaming; Orchestrator v0 is sync-call based, so no consumer. Revisit when we add a chat-style UI.
 - **Token accounting accuracy.** `cost-calc` uses static pricing table. Anthropic pricing changes are rare but not zero. Wire to monthly health check that diffs against `pricing` page.
 - **Priority Tier.** Available for all three models but not enabled in v0 (Priority Tier needs committed spend, we're pre-Tier-2). Revisit when we're consistently hitting Tier 1 caps.
-- **Extended thinking.** Sonnet 4.6 and Haiku 4.5 support it; Opus 4.7 supports adaptive thinking only. Not used in v0 because copy tasks don't need it and it 2–4× the cost. v1.1: tag-driven enablement (`brief.requires_deep_reasoning`).
+- **Extended thinking / effort.** Dispatcher shipped in §4.2.1 but `reasoning` input left unset in v0. v1.1 turn-on: add `reasoning.effort` or `reasoning.budget_tokens` to the brief and let the orchestrator pass it through. Tag-driven enablement (`brief.requires_deep_reasoning`) maps to `reasoning.effort = "xhigh"` on Opus 4.7 or `reasoning.effort = "high"` on Sonnet 4.6.
 - **Fast mode.** Beta research preview on Opus 4.6 only — not relevant to our Sonnet 4.6 default.
 - **Prompt caching TTL upgrade.** 1-hour TTL available at 2× write cost. Break-even > 20 reads. At current 8-blocks-per-brief and low brief volume, 5-minute TTL is sufficient.
 - **Batch API.** 50% discount on non-urgent work. Orchestrator v0 is synchronous; batching revisited if we add an overnight-generation feature.
