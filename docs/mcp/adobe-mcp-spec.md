@@ -258,7 +258,21 @@ Source: [EDS admin API keys](https://www.aem.live/docs/admin-apikeys).
 
 ### 3.4 DA.live auth
 
-IMS-backed bearer token from a provisioned DA service user. Token obtained via the same IMS token endpoint as §3.1 but with a DA-specific scope (to be confirmed during Q9 setup — see §11). Secret path: `/bla/dev/adobe/da-live/`.
+IMS-backed bearer token from a provisioned DA service user. Token obtained via the same IMS token endpoint as §3.1 but with a DA-specific scope.
+
+**DA.live OAuth scope: PENDING** — see `docs/da-live-scope-query-2026-04-19.md`. Cowork (J) is pinging the DA.live product team in parallel; Phase 1 coding does not wait on this because of the fail-fast startup behavior below.
+
+**Startup behavior until the scope is resolved:**
+
+| `BLA_DA_LIVE_ENABLED` | `/bla/dev/adobe/da-live/scope` in Infisical | Behavior |
+|---|---|---|
+| `true` | unset | **Adobe MCP refuses to boot.** Clear error: `"DA.live enabled but scope unresolved — see adobe-mcp-spec.md §3.4 and docs/da-live-scope-query-2026-04-19.md"`. Exit code 78 (EX_CONFIG). |
+| `true` | set | Adobe MCP boots normally; `da.*` tools active. |
+| `false` | any | Adobe MCP boots with DA.live module **disabled**. Orchestrator degrades gracefully: `eds.publish_preview` writes content via an alternate path (pre-placed assets / direct filesystem write in the `bla-demo` repo). Revlon demo is unaffected. |
+
+The fail-fast is intentional — silent misconfiguration at startup would otherwise surface as an opaque 401 or 403 later, during the first demo call. Startup rejection with a named doc reference is faster to diagnose.
+
+**Secret path when resolved:** `/bla/dev/adobe/da-live/` containing `service_user_client_id`, `service_user_client_secret`, and (when H4 resolves) `scope`.
 
 ### 3.5 Secret paths (Infisical)
 
