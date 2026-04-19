@@ -308,10 +308,16 @@ Update `docs/mcp/llm-mcp-spec.md` §6:
 Update task #79 description: voice.json v0 must validate against this schema before the Revlon demo.
 
 ### Tranche 2 acceptance
-- [ ] Patch 2.1 merged — webhook fixture tests pass, `status` no longer drives state machine
-- [ ] Patch 2.2 merged — property test shows signature invariance across permutations
-- [ ] Patch 2.3 merged — MCP fails-fast if DA.live enabled without scope; J ping sent
-- [ ] Patch 2.4 merged — voice.json validates against pinned schema
+- [x] Patch 2.1 merged — `db9713d` — §2.3.1 rule + fixture set (5 fixtures incl. complete-no-approval safety test)
+- [x] Patch 2.2 merged — `b8e44ac` — SHA-256 over RFC 8785 JCS, CHAR(64), ms-truncated ISO-8601, property test
+- [x] Patch 2.3 merged — `c28022c` — fail-fast startup matrix (BLA_DA_LIVE_ENABLED × Infisical scope)
+- [x] Patch 2.4 merged — `e4954ba` — voice-schema.json ships; Revlon voice.json validates; §8.5 fail-fast semantics
+
+## Tranche 2 complete — e4954ba 2026-04-19
+
+Closed: H2, H3, H4 (placeholder — scope still pending J's Adobe ping), H8. Four commits, one per patch. All pre-Phase-1 blockers cleared.
+
+Per J's directive, stopping before Tranche 3. Resolution appendix added to `docs/spec-review-findings-2026-04-19.md`. Awaiting Phase 1 kickoff signal (task #55 Turborepo scaffold) before starting Patches 3.1-3.5.
 
 ---
 

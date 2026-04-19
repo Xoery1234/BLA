@@ -350,3 +350,34 @@ Spec mentions Mimir. Alloy default path is OTLP → Tempo/Loki, Prom RW → Mimi
 **Recommendation: do not start Phase 1 coding until critical + high items are resolved.** Estimated cost of fixing now: **2–3 days**. Estimated cost of fixing in Phase 1 once code is written against flawed specs: **~2 weeks** of rework and integration-test failures.
 
 *End of findings.*
+
+---
+
+## Resolution (appended 2026-04-19 after Tranches 1 + 2)
+
+Mapping of each CRITICAL and HIGH finding to the commit that closed it on `main`. MEDIUM and NOTE items remain open for Tranche 3 or explicit deferral per `docs/SPEC-REVISION-BRIEF-2026-04-19.md` §"Deferred to v1".
+
+| Finding | Severity | Commit | Status after commit |
+|---|---|---|---|
+| **C1** — Sonnet 4.6 cache minimum + unconditional padding | CRITICAL | `596443f` | **CLOSED** — MODEL_CACHE_MIN dispatcher in llm-mcp-spec §4.3.1/2/3 + §8.4 rationale rewrite. Haiku cost-delta math in commit body shows old code never cached Haiku (saved ~$0.008/brief on Haiku fan-out). |
+| **C2** — Opus 4.7 `thinking.type:"enabled"` returns 400 | CRITICAL | `fc0552d` | **CLOSED** — reasoning dispatcher in §4.2.1 with per-model capability matrix. Opus 4.7 → adaptive + effort; Sonnet 4.6 → effort preferred, budget_tokens deprecated-but-functional; Haiku 4.5 → manual thinking only; 8-case contract test. |
+| **C3** — PRD v2 "unified Adobe IMS" claim wrong | CRITICAL | `cb1a67c` | **CLOSED** — PRD r2 → r3 header bump, new "Revision history" section, §1 key-changes table row rewritten, §2 "Auth simplification" → "Auth — three stores, one discipline" with per-store Infisical paths, §3.1 adobe-mcp rewritten, §8 LOE driver re-justified. Numeric LOE ballpark unchanged. |
+| **H1** — Triple-gate (specs) vs double-gate (NFR) drift | HIGH | `05ab53c` | **CLOSED** — NFR §6.2 rewrite + §6.2.1 8-row contract test matrix + §6.2.2 other invariants. Env var `ENABLE_LIVE_PUBLISH` → `BLA_ALLOW_LIVE_PUBLISH`, per-call `allow_live_publish_ack` → `confirm_live`, error class `LivePublishGateError` → `LivePublishUnauthorizedError` harmonized across adobe-mcp + orchestrator-mcp. Historical review artifacts left as frozen records. |
+| **H2** — Workfront `status` vs `approvalStatus` | HIGH | `db9713d` | **CLOSED** — orchestrator-mcp §2.3.1 explicit rule + §2.3.2 5-fixture set including `task-complete-no-approval.json` safety test. Behavior step 4 switched from prose APPROVED/REJECTED to API values APV/REJ with legacy-payload WARN branch. |
+| **H3** — Event signature formula underspecified | HIGH | `b8e44ac` | **CLOSED** — orchestrator-mcp §8.4.1 pinned: SHA-256 over RFC 8785 JCS canonical JSON over fixed 4-field object; CHAR(64) lowercase hex storage; ISO-8601 Z ms-truncated; §8.4.4 property-based test spec. Schema column TEXT → CHAR(64). |
+| **H4** — DA.live OAuth scope "TBC" | HIGH | `c28022c` | **PARTIAL — spec-side closed; scope still pending.** adobe-mcp §3.4 replaced with fail-fast startup matrix: (BLA_DA_LIVE_ENABLED=true × scope unset) → refuse to boot with exit 78 and named doc ref; (false × any) → DA.live disabled, orchestrator degrades to pre-placed assets. J's Adobe ping runs in parallel; implementation unblocked. |
+| **H5** — Cost-ledger race window | HIGH | — | **OPEN (Tranche 3, Patch 3.1)** — awaits Phase 1 kickoff. |
+| **H6** — Webhook handler 5s deadline tight | HIGH | — | **OPEN (Tranche 3, Patch 3.2)** — awaits Phase 1 kickoff. |
+| **H7** — Publish-bypass paths (kill switch + per-brand + audit) | HIGH | — | **OPEN (Tranche 3, Patch 3.3)** — awaits Phase 1 kickoff. J approved v0 scope. |
+| **H8** — voice.json schema not pinned | HIGH | `e4954ba` | **CLOSED** — `packages/shared/schemas/voice-schema.json` shipped (JSON Schema 2020-12). Required-field set matches LLM MCP's actual reads. Revlon voice.json validated against schema (passes). llm-mcp §5 voice-loader row updated + new §8.5 fail-fast semantics (exit 78 on boot, BriefInvalidError at lazy read, WARN-and-serve-stale on cache refresh) + §9.3 contract test. **Note:** schema shape is flat-per-brand (matches production voice.json); revision brief's example used a `{brands: {id: …}}` wrapper that did not match production — flagged in the Patch 2.4 commit body. |
+| **H9** — Optimistic lock livelock on hot briefs | HIGH | — | **OPEN (Tranche 3, Patch 3.4)** — awaits Phase 1 kickoff. |
+| **H10** — Stuck-brief watcher has no retry path | HIGH | — | **OPEN (Tranche 3, Patch 3.5)** — awaits Phase 1 kickoff. J approved v0 scope. |
+
+### Summary
+- CRITICAL closed: **3/3** (C1, C2, C3).
+- HIGH closed: **5/10** (H1, H2, H3, H4 spec-side, H8).
+- HIGH still open: **5/10** (H5, H6, H7, H9, H10) — all in Tranche 3, awaiting Phase 1 kickoff per J's sequencing.
+- MEDIUM: M1, M2, M4, M8 slated for Tranche 3 "cheap MEDIUMs" fold-in. Others per revision brief §"Deferred to v1".
+- NOTES: N1–N5 per revision brief §"Deferred to v1" (next doc-sweep session).
+
+All Tranche 1 + 2 patches landed on `main` between `596443f` (Patch 1.1) and `e4954ba` (Patch 2.4).
