@@ -1,0 +1,213 @@
+{
+  "$schema": "https://bla.monks/schemas/voice.schema.v0.json",
+  "brand_id": "revlon",
+  "version": "0.1.0",
+  "last_updated": "2026-04-18",
+  "owner": "j@monks.com",
+  "status": "draft",
+
+  "brand_positioning": {
+    "category": "prestige mass beauty",
+    "heritage": "Founded 1932, New York City. Iconic in the beauty industry.",
+    "audience_primary": "Women 25-54, color-conscious, value-aware but aspirational",
+    "audience_secondary": "Gen Z beauty enthusiasts discovering heritage brands",
+    "competitive_stance": "Democratic luxury — bold beauty accessible to all"
+  },
+
+  "voice_characteristics": {
+    "primary_traits": [
+      "confident",
+      "bold",
+      "aspirational",
+      "inclusive"
+    ],
+    "secondary_traits": [
+      "knowing",
+      "effortless",
+      "editorial",
+      "warm"
+    ],
+    "avoid_traits": [
+      "clinical",
+      "apologetic",
+      "overly-technical",
+      "condescending"
+    ]
+  },
+
+  "tone_parameters": {
+    "energy": "medium-high",
+    "formality": "conversational",
+    "sentence_length": "short-to-medium",
+    "perspective": "second-person (you, your)",
+    "punctuation_style": "confident (minimal ellipses, no excessive exclamations)"
+  },
+
+  "vocabulary": {
+    "preferred_terms": [
+      "bold",
+      "confident",
+      "effortless",
+      "iconic",
+      "statement",
+      "signature",
+      "transformative",
+      "weightless",
+      "long-wearing",
+      "shade",
+      "pigment"
+    ],
+    "avoid_terms": [
+      "cure",
+      "treatment",
+      "heal",
+      "fix",
+      "clinically proven",
+      "doctor recommended",
+      "miracle",
+      "guaranteed",
+      "anti-aging"
+    ],
+    "never_terms": [
+      "hypoallergenic (regulated claim)",
+      "dermatologist approved (regulated claim unless substantiated)",
+      "FDA approved"
+    ]
+  },
+
+  "brand_pillars": [
+    {
+      "name": "Bold Color",
+      "description": "Revlon is synonymous with statement color. Lips, nails, eyes — color is the lead story.",
+      "keywords": ["shade", "pigment", "bold", "statement", "vibrant"]
+    },
+    {
+      "name": "All-Day Wear",
+      "description": "Long-wearing formulas are a heritage strength. Performance meets beauty.",
+      "keywords": ["long-wearing", "16-hour", "transfer-resistant", "stays-put", "all-day"]
+    },
+    {
+      "name": "Inclusive Beauty",
+      "description": "Shades for every skin tone. Color democracy.",
+      "keywords": ["every skin tone", "inclusive", "shade range", "designed for all"]
+    },
+    {
+      "name": "Editorial Confidence",
+      "description": "Revlon aesthetic is aspirational editorial — red carpet meets real life.",
+      "keywords": ["editorial", "iconic", "red-carpet", "spotlight", "runway-to-real"]
+    }
+  ],
+
+  "examples": {
+    "headline_good": [
+      "16 hours of bold. Zero touch-ups.",
+      "Color that moves with you.",
+      "Every shade. Every skin. Every statement."
+    ],
+    "headline_avoid": [
+      "Clinically proven lipstick technology",
+      "Doctor-recommended lip treatment",
+      "Our amazing new formula is guaranteed to cure dry lips"
+    ],
+    "body_copy_good": [
+      "ColorStay Overtime delivers 16 hours of comfortable wear in 12 shades designed for every skin tone. No dry feel. No touch-ups. Just color that moves with you.",
+      "Bold pigment. Weightless comfort. The kind of confidence you wear."
+    ],
+    "body_copy_avoid": [
+      "This dermatologist-tested formula has been clinically proven to reduce the appearance of lip dryness by up to 87% when used as directed.",
+      "Please consider trying our new product which some people have found to be quite good."
+    ],
+    "cta_good": [
+      "Shop shades",
+      "Find your color",
+      "Shop the shade",
+      "See all 12"
+    ],
+    "cta_avoid": [
+      "Click here to learn more about this amazing product",
+      "Buy now while supplies last!!"
+    ]
+  },
+
+  "block_specific_guidance": {
+    "statement": {
+      "ideal_word_count": "8-15 words",
+      "structure": "Declarative. No hedging.",
+      "example": "Bold color. All day. Every skin tone."
+    },
+    "product-hero": {
+      "headline_word_count": "6-12 words",
+      "subhead_word_count": "15-25 words",
+      "structure": "Headline = hero claim. Subhead = proof point + audience hook."
+    },
+    "product-summary": {
+      "copy_word_count": "40-80 words",
+      "structure": "Problem/solution framing avoided. Lead with benefit, support with detail."
+    },
+    "feature-grid": {
+      "per_feature_word_count": "8-15 words",
+      "structure": "Benefit-first, feature second. Parallel sentence structure across all items."
+    },
+    "press-quotes": {
+      "authenticity": "Use only real quotes from real publications. Never generate fake press quotes."
+    },
+    "reviews-condensed": {
+      "authenticity": "Use only verified customer reviews. Never generate fabricated reviews."
+    },
+    "cta-grid": {
+      "cta_word_count": "2-4 words",
+      "style": "Action-first. No 'Learn more' — always lead with verb."
+    },
+    "cta-sticky": {
+      "cta_word_count": "2-3 words",
+      "style": "Buy-intent focused. 'Shop the shade', 'Add to bag', 'Find your color'."
+    }
+  },
+
+  "legal_guardrails": {
+    "regulated_claims": {
+      "skin_benefit_claims": "Only use with documented substantiation. If unsure, escape-hatch to aesthetic language.",
+      "medical_claims": "Forbidden. Do not imply health benefits.",
+      "comparative_claims": "Forbidden. Do not reference competitors by name or implicitly.",
+      "performance_claims": "Must be supportable. '16-hour wear' only if formula is independently tested to that spec."
+    },
+    "required_disclaimers": [
+      "None at v0. v1 will add product-category specific disclaimers."
+    ]
+  },
+
+  "llm_prompt_injection": {
+    "system_prompt_template": "You are writing copy for Revlon, a prestige mass beauty brand known for bold color, long-wearing performance, and inclusive shade ranges. Voice: confident, bold, aspirational, inclusive. Tone: conversational, medium-high energy, short-to-medium sentences, second-person perspective. Avoid: clinical language, medical claims, competitor comparisons, hedging. Follow brand_pillars, preferred_terms, and block_specific_guidance from voice.json. Never use avoid_terms or never_terms. All copy must respect legal_guardrails.regulated_claims.",
+    "inject_on": [
+      "brand_positioning.category",
+      "voice_characteristics.primary_traits",
+      "vocabulary.avoid_terms",
+      "vocabulary.never_terms",
+      "legal_guardrails.regulated_claims"
+    ],
+    "inject_conditionally": [
+      {
+        "when": "block_type == <any>",
+        "inject": "block_specific_guidance.<block_type>"
+      }
+    ]
+  },
+
+  "validation_hooks": {
+    "post_generation": [
+      "check banned_terms — reject generation if any present",
+      "check never_terms — reject generation if any present",
+      "check word count against block_specific_guidance — warn if out of range",
+      "check for competitor brand names (L'Oreal, Maybelline, NYX, etc.) — reject if present"
+    ]
+  },
+
+  "changelog": [
+    {
+      "version": "0.1.0",
+      "date": "2026-04-18",
+      "author": "j@monks.com",
+      "notes": "Initial v0 draft for Phase 0 piping. Based on Revlon heritage positioning + ColorStay Overtime pilot brief. Needs validation with Revlon brand team before demo."
+    }
+  ]
+}
