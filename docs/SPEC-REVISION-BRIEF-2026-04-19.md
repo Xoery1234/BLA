@@ -16,27 +16,53 @@ Execute in three tranches. Each tranche ends with a green commit on `main` and a
 
 ## Tranche 1 — CRITICAL + H1 language alignment (target: same-day turnaround)
 
-### Patch 1.1 — C1 — Sonnet 4.6 cache minimum correction
+### Patch 1.1 — C1 — Prompt-cache padding made model-aware (CORRECTED 2026-04-19)
 
 **File:** `docs/mcp/llm-mcp-spec.md`
 **Sections:** §5.2 "Prompt caching", §9 "Cost model"
 
-Replace any occurrence of `2048` as the Sonnet 4.6 cache minimum with `1024`. Keep Haiku 4.5 at `2048`. Document source of truth with a footnote: "Anthropic prompt-caching minimums verified 2026-04-18. Haiku 4.5 minimum is 2048 tokens; Sonnet 4.6 minimum is 1024 tokens. Re-verify at each major model release."
+**Correction note (2026-04-19):** An earlier version of this patch said "replace 2048 with 1024 on Sonnet 4.6" and "keep Haiku 4.5 at 2048." That was based on a memory-reconstructed adversarial finding and was **wrong in the direction of correction**. Re-verified against `platform.claude.com/docs/en/build-with-claude/prompt-caching` on 2026-04-19:
+
+- **Sonnet 4.6 minimum: 2048 tokens** (unchanged from original spec)
+- **Haiku 4.5 minimum: 4096 tokens** (unchanged from original spec)
+- **Opus 4.5 / 4.6 / 4.7 minimum: 4096 tokens**
+
+The original spec numbers are correct. The substantive C1 fix is still needed: **the padding logic that pads unconditionally to 2048 is wrong for Haiku (under-pads) and wasteful for cases where input already exceeds the minimum.** Fix is to make padding model-aware.
+
+Add the lookup table to §5.2:
+
+```typescript
+const MODEL_CACHE_MIN: Record<ModelId, number> = {
+  'claude-opus-4-7':   4096,
+  'claude-opus-4-6':   4096,
+  'claude-sonnet-4-6': 2048,
+  'claude-haiku-4-5':  4096,
+};
+```
 
 Rewrite the padding logic section:
 - Before: unconditional pad-to-2048.
 - After: `const cacheMin = MODEL_CACHE_MIN[model]; if (estimatedInputTokens < cacheMin) { applyPadding(cacheMin - estimatedInputTokens); } else { skipPadding(); }`
 
-Add unit-test spec to §5.2:
+Document source of truth with a footnote: "Anthropic prompt-caching minimums verified 2026-04-19 against `platform.claude.com/docs/en/build-with-claude/prompt-caching`. Re-verify at each major model release."
+
+Add unit-test spec to §5.2 — one test per model at its real boundary:
+
 ```
-Test: prompt-cache-boundary
-Given  model=claude-sonnet-4-6, prompt tokens ∈ {1023, 1024, 1025}
-Expect 1023 → padded to 1024, cache_create emitted
-       1024 → no padding, cache_create emitted
-       1025 → no padding, cache_read emitted on 2nd call
+Test: prompt-cache-boundary (per model)
+Sonnet 4.6:  tokens ∈ {2047, 2048, 2049}
+  Expect  2047 → padded to 2048, cache_create emitted
+          2048 → no padding, cache_create emitted
+          2049 → no padding, cache_read emitted on 2nd call
+Haiku 4.5:   tokens ∈ {4095, 4096, 4097}
+  Expect  4095 → padded to 4096, cache_create emitted
+          4096 → no padding, cache_create emitted
+          4097 → no padding, cache_read emitted on 2nd call
+Opus 4.7:    tokens ∈ {4095, 4096, 4097}
+  Expect same pattern as Haiku 4.5
 ```
 
-Recompute §9 cost table entries that assumed padding to 2048 on Sonnet. Show "before / after" deltas in the commit message so reviewers can verify the arithmetic.
+**§9 cost table:** Sonnet 4.6 lines are a no-op (original 2048 numbers were correct). Haiku 4.5 lines need recompute — original unconditional pad-to-2048 under-padded Haiku, so actual caching behavior on Haiku under the original code was "nothing cached, full input cost." The corrected model-aware padding to 4096 will cache Haiku calls that previously didn't — show this cost delta in the commit message.
 
 ### Patch 1.2 — C2 — Opus 4.7 thinking gate
 
@@ -56,6 +82,8 @@ function buildThinkingBlock(model: ModelId, budgetTokens?: number) {
 Document:
 - Opus 4.7 → adaptive thinking only, no `budget_tokens` parameter. Quality tuning happens via prompt framing, not API.
 - Sonnet 4.6 + Haiku 4.5 → `thinking.type = 'enabled'` with `budget_tokens` accepted.
+
+**Before applying:** re-verify against `platform.claude.com/docs/en/build-with-claude/extended-thinking`. Opus 4.7 may also accept an `effort` parameter (low/medium/high/max) and a `task-budgets-2026-03-13` beta header. If quality knob on Opus is needed, prefer the `effort` parameter over returning undefined. If Phase 1 doesn't need the knob, the conservative dispatcher (return undefined for Opus) ships fine. Record the decision inline with a citation to the doc version consulted.
 
 Add contract test per model asserting the request body shape the provider will accept. If Anthropic SDK ≥ the relevant version exposes this as a type error, prefer that approach and note the SDK version requirement.
 
@@ -280,7 +308,6 @@ Update task #79 description: voice.json v0 must validate against this schema bef
 - [ ] Patch 2.2 merged — property test shows signature invariance across permutations
 - [ ] Patch 2.3 merged — MCP fails-fast if DA.live enabled without scope; J ping sent
 - [ ] Patch 2.4 merged — voice.json validates against pinned schema
-- [ ] Append `## Tranche 2 complete` to this file
 
 ---
 
