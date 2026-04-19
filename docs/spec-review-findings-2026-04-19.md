@@ -365,7 +365,7 @@ Mapping of each CRITICAL and HIGH finding to the commit that closed it on `main`
 | **H1** — Triple-gate (specs) vs double-gate (NFR) drift | HIGH | `05ab53c` | **CLOSED** — NFR §6.2 rewrite + §6.2.1 8-row contract test matrix + §6.2.2 other invariants. Env var `ENABLE_LIVE_PUBLISH` → `BLA_ALLOW_LIVE_PUBLISH`, per-call `allow_live_publish_ack` → `confirm_live`, error class `LivePublishGateError` → `LivePublishUnauthorizedError` harmonized across adobe-mcp + orchestrator-mcp. Historical review artifacts left as frozen records. |
 | **H2** — Workfront `status` vs `approvalStatus` | HIGH | `db9713d` | **CLOSED** — orchestrator-mcp §2.3.1 explicit rule + §2.3.2 5-fixture set including `task-complete-no-approval.json` safety test. Behavior step 4 switched from prose APPROVED/REJECTED to API values APV/REJ with legacy-payload WARN branch. |
 | **H3** — Event signature formula underspecified | HIGH | `b8e44ac` | **CLOSED** — orchestrator-mcp §8.4.1 pinned: SHA-256 over RFC 8785 JCS canonical JSON over fixed 4-field object; CHAR(64) lowercase hex storage; ISO-8601 Z ms-truncated; §8.4.4 property-based test spec. Schema column TEXT → CHAR(64). |
-| **H4** — DA.live OAuth scope "TBC" | HIGH | `c28022c` | **PARTIAL — spec-side closed; scope still pending.** adobe-mcp §3.4 replaced with fail-fast startup matrix: (BLA_DA_LIVE_ENABLED=true × scope unset) → refuse to boot with exit 78 and named doc ref; (false × any) → DA.live disabled, orchestrator degrades to pre-placed assets. J's Adobe ping runs in parallel; implementation unblocked. |
+| **H4** — DA.live OAuth scope "TBC" | HIGH | `c28022c` + `4f324422` + `d484337f` | **CLOSED** — spec-side fail-fast startup matrix (c28022c) paired with resolved scope 2026-04-19. Scope string `ab.manage,AdobeID,gnav,openid,org.read,read_organizations,session,aem.frontend.all,additional_info.ownerOrg,additional_info.projectedProductContext,account_cluster.read` via IMS client `darkalley`, sourced from `adobe/da-live/scripts/scripts.js` public repo (no Adobe-contact outreach needed). adobe-mcp-spec §3.4 updated with full config + secret-path keys (d484337f); query doc rewritten as RESOLVED (4f324422). Remaining characterizations (token TTL, rate limits, S2S path via Developer Console) are first-boot empirical tasks with no external dependencies. |
 | **H5** — Cost-ledger race window | HIGH | — | **OPEN (Tranche 3, Patch 3.1)** — awaits Phase 1 kickoff. |
 | **H6** — Webhook handler 5s deadline tight | HIGH | — | **OPEN (Tranche 3, Patch 3.2)** — awaits Phase 1 kickoff. |
 | **H7** — Publish-bypass paths (kill switch + per-brand + audit) | HIGH | — | **OPEN (Tranche 3, Patch 3.3)** — awaits Phase 1 kickoff. J approved v0 scope. |
@@ -375,9 +375,9 @@ Mapping of each CRITICAL and HIGH finding to the commit that closed it on `main`
 
 ### Summary
 - CRITICAL closed: **3/3** (C1, C2, C3).
-- HIGH closed: **5/10** (H1, H2, H3, H4 spec-side, H8).
+- HIGH closed: **5/10** (H1, H2, H3, H4, H8).
 - HIGH still open: **5/10** (H5, H6, H7, H9, H10) — all in Tranche 3, awaiting Phase 1 kickoff per J's sequencing.
 - MEDIUM: M1, M2, M4, M8 slated for Tranche 3 "cheap MEDIUMs" fold-in. Others per revision brief §"Deferred to v1".
 - NOTES: N1–N5 per revision brief §"Deferred to v1" (next doc-sweep session).
 
-All Tranche 1 + 2 patches landed on `main` between `596443f` (Patch 1.1) and `e4954ba` (Patch 2.4).
+All Tranche 1 + 2 patches landed on `main` between `596443f` (Patch 1.1) and `e4954ba` (Patch 2.4). DA.live scope resolution appended in `4f324422` + `d484337f` (2026-04-19) — closes H4 fully.
