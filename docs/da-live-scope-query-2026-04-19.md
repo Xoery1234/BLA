@@ -1,55 +1,56 @@
-# DA.live OAuth scope query — for J to send
+# DA.live OAuth scope — RESOLVED 2026-04-19
 
+**Status:** ✅ RESOLVED — sourced from public Adobe source code.
 **Date:** 2026-04-19
-**Blocker:** H4 in `spec-review-findings-2026-04-19.md`
-**Outcome needed:** Exact IMS OAuth scope string for DA.live source API (user-backed token) so Adobe MCP can authenticate in Phase 1.
+**Related:** H4 in `spec-review-findings-2026-04-19.md`, `docs/mcp/adobe-mcp-spec.md` §3.4
 
 ---
 
-## Recommended recipients (pick whichever you have warmest contact with)
+## Resolution
 
-- **Dylan DePass** — DA.live product lead (most likely to know or route)
-- **Aaron Brady** — DA.live engineering lead (fallback)
-- **Adobe DA-live Slack** — `#da-live-help` or equivalent internal channel
+**Source:** [`adobe/da-live/scripts/scripts.js`](https://github.com/adobe/da-live/blob/main/scripts/scripts.js) — public repo, production DA.live client.
 
-Send to one, cc the others. Keep it short — this is a single-question ask with a narrow blast radius.
+DA.live uses a fixed IMS OAuth client with a fixed scope list. No negotiation with Adobe contacts required — the values are compiled into the public DA.live client and reused by any integration authenticating as a DA.live user.
 
----
+### Scope string
 
-## Draft message
+```
+ab.manage,AdobeID,gnav,openid,org.read,read_organizations,session,aem.frontend.all,additional_info.ownerOrg,additional_info.projectedProductContext,account_cluster.read
+```
 
-**Subject:** DA.live source API — IMS scope string + token lifetime?
+Comma-separated (Adobe IMS convention, not space-separated per generic OAuth 2.1). Pass as the `scope` param to the IMS token endpoint (`https://ims-na1.adobelogin.com/ims/token/v3`). Reuses the comma-separated-scope handling in `packages/shared/ims-client` (already specified for Workfront in `adobe-mcp-spec.md` §3.1).
 
-Hi Dylan,
+### IMS client ID
 
-Monks is building a programmatic content pipeline on top of DA.live for a brand-launch accelerator — multi-tenant, Workfront + EDS + LLM-driven. Our Adobe MCP authenticates to three stores (Workfront S2S, EDS admin keys, DA.live user-backed) and we're pinning the last one before Phase 1 kickoff next week.
+```
+darkalley
+```
 
-Four questions on DA.live source API auth:
+DA.live's internal codename. Registered for the DA.live client; any third-party integration authenticating to DA.live uses this client identity.
 
-1. **Scope string** — what exact `scope` value do we pass on the IMS token exchange for a user-backed token with read/write access to sources in a given org? Is it `openid,AdobeID,read_organizations,additional_info.projectedProductContext`, or is there a DA-live-specific scope like `da_source` or `helix_admin`?
+### Auth flow (from `adobe/da-live/blocks/shared/utils.js`)
 
-2. **Token lifetime** — access token TTL? Refresh token TTL? Any rotation requirements we should respect?
-
-3. **Rate limits** — per-token or per-user? Headers returned on 429 (retry-after seconds)?
-
-4. **Service-account variant** — is there a supported S2S flow for DA.live (technical account, no interactive login), or is user-backed the only path? If user-backed only, any best practice for a shared technical-user identity?
-
-We're locked on answers 1 and 4. If 1 is settled, we can ship Phase 1 on user-backed in the interim.
-
-Thanks — happy to jump on a 15-min call if easier to walk through.
-
-— J
+1. User obtains IMS access token via standard browser OAuth flow against `darkalley` client.
+2. Subsequent API calls to `admin.da.live/source/...` pass `Authorization: Bearer ${accessToken}`.
+3. For AEM content operations, DA.live exchanges the IMS token for a site-scoped token via `POST ${AEM_ORIGIN}/auth/adobe/exchange` with `{ org, site, accessToken }`.
+4. Origins allowed for the exchange: `da.live`, `da.page`, `admin.da.live`, `admin.hlx.page`, `admin.aem.live`.
 
 ---
 
-## Fallback if no answer by 2026-04-23
+## Remaining implementation questions (non-blocking)
 
-Adobe MCP ships with `BLA_DA_LIVE_ENABLED=false` and the pipeline degrades to pre-placed Revlon assets for the demo. The flywheel still demonstrates end-to-end: Brief → LLM copy → Workfront review → approve → EDS publish. Only the "auto-source-fetch" beat is omitted. Note this explicitly in the demo narrative so prospects understand it is a 2-week delta, not a gap.
+Questions 2–4 from the original query (token lifetime, rate limits, S2S variant) are not answered by the public source, but all are characterizable without external contacts.
+
+1. **Token lifetime.** Decode the JWT returned on first successful token call; `exp - iat` = TTL. Log observed TTL at first boot as `adobe_mcp_da_token_ttl_seconds` gauge.
+2. **Rate limits.** Observe `X-RateLimit-*` and `Retry-After` response headers on first production calls. Feed `adobe_mcp_requests_total{service="da",status="rate_limit"}` metric. Characterize empirically, same approach used for Workfront REST (per `adobe-mcp-spec.md` §4.1).
+3. **S2S (service account) variant.** Register a technical account on Adobe Developer Console under J's org-admin access. If Developer Console does not expose the `darkalley` client for S2S provisioning (likely — DA.live is not listed as a discoverable API product), fall back to a service-user with stored refresh token. **Owner: J, Phase 1 Sprint 2 task.**
 
 ---
 
-## Who captures the answer
+## Next actions (tracked in follow-up commits)
 
-When response arrives, paste into `docs/mcp/adobe-mcp-spec.md` §3.4, drop the "PENDING" placeholder, and commit. Update `spec-review-findings-2026-04-19.md` §H4 resolution.
+1. ✅ Update `docs/mcp/adobe-mcp-spec.md` §3.4 — replace `**DA.live OAuth scope: PENDING**` with the scope string above.
+2. ✅ Update `docs/spec-review-findings-2026-04-19.md` H4 row — mark fully CLOSED.
+3. Phase 1 Sprint 2 task: implement DA.live token acquisition in Adobe MCP. Default to user-backed refresh-token flow (aligns with the `darkalley` client's browser-first design); S2S exploration runs parallel, non-blocking.
 
-*End of query brief.*
+*End of resolution doc.*
