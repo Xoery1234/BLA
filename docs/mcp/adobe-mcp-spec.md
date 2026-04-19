@@ -194,7 +194,7 @@ interface UpdateSourceOutput {
 }
 ```
 
-Calls `POST https://admin.da.live/source/Xoery1234/BLA/{path}` with IMS user-backed bearer token (see §3.3 note about DA.live auth).
+Calls `POST https://admin.da.live/source/Xoery1234/BLA/{path}` with IMS user-backed bearer token (see §3.4).
 
 **`da.get_source`**
 ```ts
@@ -218,7 +218,7 @@ Single Dev Console project: `bla-adobe-services-dev` (to be created when Q6 Work
 |---|---|---|
 | Workfront | Adobe IMS S2S OAuth (access_token as Bearer) | `/bla/dev/adobe/services/` |
 | EDS admin | Admin-scoped API key | `/bla/dev/adobe/eds-admin/` |
-| DA.live source | IMS user-backed bearer (S2S token tied to provisioned DA service user) | `/bla/dev/adobe/da-live/` |
+| DA.live source | IMS user-backed refresh token via `darkalley` client | `/bla/dev/adobe/da-live/` |
 
 This is a deviation from the PRD's one-auth-flow model. Flagging to J — see §11 known gaps. It does not block v0 and the cost is one extra secret path; still worth knowing when documenting the architecture.
 
@@ -258,21 +258,44 @@ Source: [EDS admin API keys](https://www.aem.live/docs/admin-apikeys).
 
 ### 3.4 DA.live auth
 
-IMS-backed bearer token from a provisioned DA service user. Token obtained via the same IMS token endpoint as §3.1 but with a DA-specific scope.
+IMS-backed bearer token. DA.live uses a fixed IMS client `darkalley` with a fixed scope string, sourced from [`adobe/da-live/scripts/scripts.js`](https://github.com/adobe/da-live/blob/main/scripts/scripts.js) (public repo) — verified 2026-04-19. See `docs/da-live-scope-query-2026-04-19.md` for resolution + auth-flow details.
 
-**DA.live OAuth scope: PENDING** — see `docs/da-live-scope-query-2026-04-19.md`. Cowork (J) is pinging the DA.live product team in parallel; Phase 1 coding does not wait on this because of the fail-fast startup behavior below.
+**OAuth config:**
 
-**Startup behavior until the scope is resolved:**
+```
+ims_client_id: darkalley
+ims_scope:     ab.manage,AdobeID,gnav,openid,org.read,read_organizations,session,
+               aem.frontend.all,additional_info.ownerOrg,
+               additional_info.projectedProductContext,account_cluster.read
+```
 
-| `BLA_DA_LIVE_ENABLED` | `/bla/dev/adobe/da-live/scope` in Infisical | Behavior |
+Comma-separated scopes on the wire (Adobe IMS convention — reuses `packages/shared/ims-client` separator handling from §3.1). Token endpoint: same as Workfront (§3.1).
+
+**Token acquisition (v0 approach — user-backed refresh):**
+
+`darkalley` is a browser-oriented client; v0 obtains a long-lived refresh token via a one-time interactive OAuth flow (owner: J), stores it in Infisical, and uses it for subsequent access-token refreshes. S2S (technical-account) variant explored in parallel (Phase 1 Sprint 2, non-blocking) — if Developer Console exposes `darkalley` for S2S provisioning, we switch. Fallback stays the service-user refresh-token model.
+
+**Startup behavior (guards against operator misconfig):**
+
+| `BLA_DA_LIVE_ENABLED` | `/bla/dev/adobe/da-live/*` secrets populated | Behavior |
 |---|---|---|
-| `true` | unset | **Adobe MCP refuses to boot.** Clear error: `"DA.live enabled but scope unresolved — see adobe-mcp-spec.md §3.4 and docs/da-live-scope-query-2026-04-19.md"`. Exit code 78 (EX_CONFIG). |
-| `true` | set | Adobe MCP boots normally; `da.*` tools active. |
+| `true` | any required key missing | **Adobe MCP refuses to boot.** Clear error naming the missing key, references this §3.4. Exit code 78 (EX_CONFIG). |
+| `true` | complete | Adobe MCP boots normally; `da.*` tools active. |
 | `false` | any | Adobe MCP boots with DA.live module **disabled**. Orchestrator degrades gracefully: `eds.publish_preview` writes content via an alternate path (pre-placed assets / direct filesystem write in the `bla-demo` repo). Revlon demo is unaffected. |
 
-The fail-fast is intentional — silent misconfiguration at startup would otherwise surface as an opaque 401 or 403 later, during the first demo call. Startup rejection with a named doc reference is faster to diagnose.
+Fail-fast is intentional — silent misconfig at startup would otherwise surface as an opaque 401 or 403 later, during the first demo call. Named exit-code rejection is faster to diagnose.
 
-**Secret path when resolved:** `/bla/dev/adobe/da-live/` containing `service_user_client_id`, `service_user_client_secret`, and (when H4 resolves) `scope`.
+**Secret path `/bla/dev/adobe/da-live/` (v0):**
+- `client_id` — static value `darkalley` (stored for rotation parity, not rotatable in practice)
+- `scope` — static comma-separated scope string (same rationale)
+- `service_user_email` — DA.live service user identity
+- `refresh_token` — long-lived refresh token from initial browser OAuth (v0)
+
+Storing the static values in Infisical rather than hardcoding preserves symmetry with other credential paths and gives us a single rotation surface if Adobe ever changes the client or scope.
+
+**Still characterize on first production calls (non-blocking):**
+- **Access token TTL** — decode JWT `exp - iat` on first successful refresh; log as `adobe_mcp_da_token_ttl_seconds` gauge, align refresh cadence accordingly.
+- **Rate limits** — observe `X-RateLimit-*` / `Retry-After` headers; feed `adobe_mcp_requests_total{service="da",status="rate_limit"}`. Characterize empirically (same approach as Workfront REST, §4.1).
 
 ### 3.5 Secret paths (Infisical)
 
@@ -289,9 +312,11 @@ Per PRD v2 §4 isolation protocol and [Infisical folder rules](https://infisical
   api_key
   github_owner                  # Xoery1234
   github_repo                   # BLA
-/bla/dev/adobe/da-live/
-  service_user_client_id
-  service_user_client_secret
+/bla/dev/adobe/da-live/         # DA.live user-backed refresh flow
+  client_id                     # static: "darkalley"
+  scope                         # static: comma-separated scope string (§3.4)
+  service_user_email            # DA.live service user identity
+  refresh_token                 # long-lived token from initial browser OAuth
 ```
 
 Prod paths mirror with `/bla/prod/adobe/...`.
@@ -300,7 +325,7 @@ Prod paths mirror with `/bla/prod/adobe/...`.
 
 - **IMS client secret:** 90 days. Adobe Dev Console supports two side-by-side secrets — overlap 24h, rotate, revoke old.
 - **EDS admin API key:** quarterly. POST/DELETE rotation with 24h overlap.
-- **DA.live service user:** aligns with IMS (90 days).
+- **DA.live refresh token:** rotation cadence TBD per observed access-token TTL; interim align with IMS (90 days). Rotation requires re-running the one-time browser OAuth flow — document in operator runbook.
 
 Calendar cron entries owned by J. Monitor expiry via `adobe_mcp_credential_days_until_expiry` gauge (§6).
 
@@ -420,7 +445,8 @@ Measured via `adobe_mcp_latency_seconds{service,tool}` P95. Grafana alert on 5-m
 | `adobe_mcp_circuit_state` | gauge | `service` | `0=closed, 1=open, 2=half-open` |
 | `adobe_mcp_ims_token_refresh_total` | counter | `proactive` | `proactive ∈ {true, false}` |
 | `adobe_mcp_ims_token_seconds_remaining` | gauge | (none) | For expiry alerting. |
-| `adobe_mcp_credential_days_until_expiry` | gauge | `credential` | `credential ∈ {ims_client_secret, eds_api_key, da_service_user}` — alert at ≤14d |
+| `adobe_mcp_credential_days_until_expiry` | gauge | `credential` | `credential ∈ {ims_client_secret, eds_api_key, da_refresh_token}` — alert at ≤14d |
+| `adobe_mcp_da_token_ttl_seconds` | gauge | (none) | Observed DA.live access-token TTL from JWT `exp - iat`; characterization aid. |
 | `adobe_mcp_webhook_received_total` | counter | `verified` | mTLS cert verification result |
 | `adobe_mcp_eds_publish_total` | counter | `mode`, `gate_passed` | `mode ∈ {preview, live}`, `gate_passed ∈ {true, false}` |
 | `adobe_mcp_workfront_subscription_active` | gauge | `object_type`, `event_type` | Confirms our subscriptions are live |
@@ -440,7 +466,7 @@ Child spans for auth (`ims.token_refresh`), retries (`http.retry`), payload seri
 Structured JSON to stdout. Labels: `service`, `env`, `level`.
 
 **Security redaction (mandatory):**
-- Never log `x-api-key`, `Authorization`, `client_secret`, raw IMS tokens. Redact to `<redacted:16>`.
+- Never log `x-api-key`, `Authorization`, `client_secret`, raw IMS tokens, DA.live refresh tokens. Redact to `<redacted:16>`.
 - Never log webhook `X-Client-Certificate` contents beyond subject CN.
 - Brief content and generated copy at INFO are summarized (first 200 chars); full at DEBUG.
 
@@ -645,6 +671,7 @@ Every tool call accepts `request_id`. MCP caches `(request_id → response)` for
 | Live publish gate count | **Triple-gate** (env flag + input ack + brief flag). | Safety invariant. Orchestrator owns the brief-flag gate (see orchestrator §9). |
 | Firefly shared project in v1.5 | **Share `bla-adobe-services-dev`**. | Credits are per product-profile, not per Dev Console project. One project = simpler rotation. |
 | Scope strings Workfront | **`openid,AdobeID,profile,additional_info.projectedProductContext`**. | Verified — no distinct `workfront_api` scope exists; product-profile attachment provides authorization. |
+| Scope strings DA.live | **`ab.manage,AdobeID,gnav,openid,org.read,read_organizations,session,aem.frontend.all,additional_info.ownerOrg,additional_info.projectedProductContext,account_cluster.read`** via `darkalley` client. | Sourced from `adobe/da-live/scripts/scripts.js` public repo, 2026-04-19. See §3.4. |
 | Rate limit budget | **Empirical** (no published RPS for Workfront REST). Build backoff not budgeting. | Experience League doesn't publish core `/attask` RPS; Fusion tier is 100 req/s but we don't route through Fusion. |
 | EDS 503 wrapping | **Parse `x-error` before retry classification.** | Otherwise retry-on-5xx loops amplify rate-limit pressure. |
 | Webhook auth mechanism | **Mutual TLS + optional `authToken`** — NOT HMAC. | Verified in Workfront event-sub-certs docs. Significant impact on hosting choice. |
@@ -654,8 +681,8 @@ Every tool call accepts `request_id`. MCP caches `(request_id → response)` for
 
 ## 11. Known gaps / deferred
 
-- **Three-auth-store deviation from PRD v2 §2.** EDS uses admin API keys (not IMS); DA.live uses IMS user-backed tokens (not pure S2S). Flag for J — the "unified Adobe IMS" architecture narrative is aspirational for EDS. Worth noting in the next PRD revision.
-- **DA.live exact auth flow.** Service-user IMS path needs concrete confirmation during Q9 setup. v0 spec reserves `/bla/dev/adobe/da-live/` path but scope strings and token-exchange specifics TBD. Tracked as BLA-73.
+- **Three-auth-store deviation from PRD v2 §2.** EDS uses admin API keys (not IMS); DA.live uses IMS user-backed refresh-token flow (not pure S2S). Flag for J — the "unified Adobe IMS" architecture narrative is aspirational for EDS. Worth noting in the next PRD revision.
+- **DA.live S2S path.** v0 uses user-backed refresh token via the `darkalley` client. S2S (technical-account) variant is a Phase 1 Sprint 2 exploration — if Developer Console exposes `darkalley` for S2S provisioning, we switch. Non-blocking for Revlon demo.
 - **Workfront rate limits documented.** No official RPS for core REST. Build watch on `adobe_mcp_requests_total{service="workfront",status="rate_limit"}` to empirically characterize. Could be worth an SRE deep-dive in v1.
 - **mTLS termination choice.** Running `mtls-server` inline in Node.js works but is fiddly behind managed load balancers. Alternative: nginx + `proxy_ssl_verify_client on` forwarding peer-cert headers. v0: inline Node (single-VPS deploy). v1 if we ever run behind a managed LB, revisit.
 - **`eds.get_config` parse shape.** JSON blob unmarshalled as-is. No typed wrapper v0 — add in v1 when we care about specific keys.
@@ -676,6 +703,7 @@ Every tool call accepts `request_id`. MCP caches `(request_id → response)` for
 - [EDS admin API keys](https://www.aem.live/docs/admin-apikeys)
 - [EDS limits](https://www.aem.live/docs/limits)
 - [DA.live developer docs](https://docs.da.live/developers)
+- [adobe/da-live public repo](https://github.com/adobe/da-live)
 - [da-admin open source repo](https://github.com/adobe/da-admin)
 - [MCP spec 2025-11-25](https://modelcontextprotocol.io/specification/2025-11-25)
 - [Infisical folder naming](https://infisical.com/docs/documentation/platform/folder)
