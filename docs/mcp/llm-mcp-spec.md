@@ -598,6 +598,78 @@ Source: voice.json `validation_hooks.post_generation` — four checks enumerated
 
 Note: adversarial review questioned "what happens at $0.99 with one more $0.05 variant requested?" Answer: rejected at the projection step (above). Caller sees `CostCapExceededError` with `details: { cumulative, projected, cap }` so the orchestrator can surface the reason to the human via Workfront comment.
 
+#### 8.3.1 Cost-ledger race defense — `SELECT ... FOR UPDATE` (H5)
+
+**Problem.** The earlier spec said "serial assumption acceptable in v0." The orchestrator is NOT strictly serial — Phase 2 fans out home + PDP generation in parallel (PRD §7). Two concurrent `generate_copy` calls on the same brief can both read the ledger showing `$0.40 used / $1.00 cap`, each project `$0.05`, each pass the projection check, and both dispatch to Anthropic. Budget bounded per-brief but the race window is real.
+
+**Fix.** Per-brief ledger reads serialize at a row-lock boundary. Same pattern on the daily-cost ledger.
+
+```sql
+-- Per-brief projection + reservation
+BEGIN;
+SELECT spent_cents
+  FROM cost_ledger
+ WHERE brief_id = $1
+   FOR UPDATE;                      -- blocks concurrent readers until COMMIT
+
+-- In application code:
+--   projected_cents = ceil(projected_call_cost * 100);
+--   IF spent_cents + projected_cents > cap_cents THEN
+--     ROLLBACK;
+--     THROW CostCapExceededError;
+--   END IF;
+
+UPDATE cost_ledger
+   SET spent_cents = spent_cents + $projected_cents,
+       last_projected_at = now()
+ WHERE brief_id = $1;
+COMMIT;
+
+-- Then dispatch the Anthropic call.
+-- Reconciliation runs in a second transaction once the real usage
+-- lands in the Messages API response:
+BEGIN;
+UPDATE cost_ledger
+   SET spent_cents = spent_cents
+                     - $projected_cents        -- unreserve the worst-case
+                     + $actual_cents,          -- book the real cost
+       reconciled_count = reconciled_count + 1
+ WHERE brief_id = $1;
+COMMIT;
+```
+
+**Why reserve-then-reconcile.** Reserving at the projection step prevents two parallel calls from both fitting in the remaining headroom. Reconciling after the API response corrects for the worst-case `max_tokens` estimate so unused headroom is released for subsequent calls on the same brief.
+
+**Why row-level, not advisory lock.** Row-level `FOR UPDATE` scopes to one brief at a time; advisory locks on a single key (`pg_advisory_xact_lock(brief_id_hash)`) achieve the same effect but are harder to observe in pg_locks. Row-level keeps diagnostics obvious. No livelock risk at v0 volume (≤1 brief/min).
+
+**Daily cap.** Same pattern, keyed on `(date_utc)`:
+```sql
+BEGIN;
+SELECT spent_cents FROM daily_cost_ledger
+ WHERE date_utc = CURRENT_DATE
+   FOR UPDATE;
+-- check + update + commit identical to above
+COMMIT;
+```
+
+Daily-cap ledger row is created lazily on first write of the UTC day (INSERT ... ON CONFLICT DO NOTHING before the SELECT FOR UPDATE so the row exists to lock).
+
+**Fail-closed on lock timeout.** Postgres `lock_timeout = 5s` (configured per-session by LLM MCP). On timeout, raise `CostCapExceededError` with `details: { reason: "ledger_lock_timeout" }` — same fail-closed invariant as the ledger-unavailable case.
+
+**Race test (required).** Per `packages/shared/llm-types` contract test suite:
+```
+Test: cost-cap-parallel-race
+Given cost_ledger.spent_cents = 95 (out of 100 cap) for brief B.
+Fire 5 parallel generate_copy calls, each projecting 5 cents.
+Expect:
+  - exactly one call succeeds (cumulative 95+5=100, at cap),
+  - four calls receive CostCapExceededError,
+  - final cost_ledger.spent_cents ≤ 105 (≤5% slop for reconciliation
+    timing — reconciliation for the one that succeeded may lag).
+```
+
+**NFR §3 alignment.** This closes the race window the NFR hard-cap depends on. Without it, the `$1/brief` cap is advisory under parallel load; with it, the cap is enforced.
+
 ### 8.4 Prompt-cache padding (model-aware)
 
 See §4.3.2 for the authoritative padding dispatcher (`MODEL_CACHE_MIN[model]`).
