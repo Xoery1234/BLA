@@ -612,6 +612,98 @@ Three independent gates. ALL required for `eds.publish_live` to succeed.
 - No testing shortcut; `publish_live` is the only path. Tests verify rejection by passing partial gates.
 - Staging env defaults `BLA_ALLOW_LIVE_PUBLISH=true` (so we can test the happy path); prod env defaults `false`. **Never the reverse** (per NFR §11 trade-off note).
 
+#### 8.5.1 Emergency kill switch (H7 — gate 0)
+
+Independent of and **evaluated BEFORE** the triple-gate. A DB-backed kill switch that can disable every live publish call, organization-wide, without a deploy.
+
+**Schema (applied to orchestrator's Postgres, see orchestrator-mcp-spec §4):**
+
+```sql
+CREATE TABLE system_flags (
+  flag_name     TEXT PRIMARY KEY,
+  flag_value    BOOLEAN NOT NULL,
+  set_by        TEXT NOT NULL,    -- email of operator
+  set_reason    TEXT NOT NULL,
+  set_at        TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- Seed row required at deploy:
+INSERT INTO system_flags (flag_name, flag_value, set_by, set_reason)
+VALUES ('live_publish_kill', false, 'system', 'initial seed');
+```
+
+**Enforcement.** On every `eds.publish_live` call, BEFORE the triple-gate:
+
+```ts
+const kill = await db.one<{ flag_value: boolean }>(
+  `SELECT flag_value FROM system_flags WHERE flag_name = 'live_publish_kill'`,
+);
+if (kill.flag_value === true) {
+  throw new LivePublishUnauthorizedError('kill_switch_engaged');
+}
+```
+
+**Fail-closed on DB error.** If the kill-switch read fails (DB down, row missing, timeout > 500ms), **treat as `kill=true`**:
+
+```ts
+try {
+  // ... read above
+} catch (err) {
+  logger.error({ err, bla_audit: 'kill_switch_read_fail' });
+  throw new LivePublishUnauthorizedError('kill_switch_read_unavailable');
+}
+```
+
+Rationale: live publish under "we can't tell if it's safe" defaults to blocked. Restoring DB connectivity is a minutes-scale problem; a mistaken live publish during that window is a multi-hour incident.
+
+**Flipping the switch** is a manual DB write, gated only by operator access:
+
+```sql
+UPDATE system_flags
+   SET flag_value = true,  -- or false to unblock
+       set_by = '<operator-email>',
+       set_reason = '<free-text reason>',
+       set_at = now()
+ WHERE flag_name = 'live_publish_kill';
+```
+
+Audit trail captured by the trigger in orchestrator §3 (writes to `audit_log_publish_flags`).
+
+**Expected flip frequency:** near-zero in v0 (live publish is off entirely). In v1+, flip to `true` during any suspected brand incident. Keep flipped until root cause identified.
+
+#### 8.5.2 Per-brand allow list (H7 — gate 4)
+
+Even if gates 1–3 are all green, a brand with `brands.live_publish_allowed = false` cannot live-publish. Enforced at the orchestrator level (orchestrator §9.4 extension) AND reconfirmed at Adobe MCP before the downstream call.
+
+**Schema addendum to orchestrator §4:**
+
+```sql
+-- Brand registry table (created if not present):
+CREATE TABLE IF NOT EXISTS brands (
+  brand_id             TEXT PRIMARY KEY,         -- e.g. 'revlon'
+  display_name         TEXT NOT NULL,
+  live_publish_allowed BOOLEAN NOT NULL DEFAULT false,
+  created_at           TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at           TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+```
+
+**Default: `false`.** Flipping to `true` for a brand is a manual DB write with audit trigger (§3 of orchestrator — see `audit_log_publish_flags`).
+
+**v0 default state for Revlon:** `live_publish_allowed = false`. Demo publishes to `bla-demo` preview only; production Revlon never receives a v0 publish.
+
+**Full gate evaluation order (all must pass, in this order):**
+
+| Order | Gate | Evaluator |
+|---|---|---|
+| 0 | `system_flags.live_publish_kill = false` | Adobe MCP |
+| 1 | `BLA_ALLOW_LIVE_PUBLISH=true` env | Adobe MCP |
+| 2 | `confirm_live: true` input | Adobe MCP |
+| 3 | `briefs.allow_live_publish = true` | Orchestrator |
+| 4 | `brands.live_publish_allowed = true` | Orchestrator + Adobe MCP double-check |
+
+Gate 0 short-circuits the rest. Gate 4 is evaluated twice (orchestrator before calling Adobe MCP, Adobe MCP before calling EDS) so a compromised orchestrator can't bypass by forging a request — the Adobe MCP reads the brand row itself.
+
 ### 8.6 Idempotency
 
 Every tool call accepts `request_id`. MCP caches `(request_id → response)` for 10 minutes in-memory; replay returns cached response with `X-Replayed: true` header-equivalent field in the MCP response metadata.

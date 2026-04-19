@@ -385,7 +385,103 @@ CREATE TABLE idempotency_keys (
 );
 
 CREATE INDEX idx_idempotency_expiry ON idempotency_keys(expires_at);
+
+-- system_flags — global kill switches (H7, adobe-mcp §8.5.1).
+-- Only one row in v0: flag_name='live_publish_kill'. Adobe MCP reads
+-- this BEFORE the triple-gate. Fail-closed on read error.
+CREATE TABLE system_flags (
+  flag_name     TEXT PRIMARY KEY,
+  flag_value    BOOLEAN NOT NULL,
+  set_by        TEXT NOT NULL,                      -- email of operator
+  set_reason    TEXT NOT NULL,
+  set_at        TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+INSERT INTO system_flags (flag_name, flag_value, set_by, set_reason)
+VALUES ('live_publish_kill', false, 'system', 'initial seed');
+
+-- brands — registry + per-brand live-publish gate (H7, gate 4).
+-- Adobe MCP double-checks this before calling EDS; orchestrator checks
+-- it before calling Adobe MCP.
+CREATE TABLE brands (
+  brand_id             TEXT PRIMARY KEY,             -- e.g. 'revlon'
+  display_name         TEXT NOT NULL,
+  live_publish_allowed BOOLEAN NOT NULL DEFAULT false,
+  created_at           TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at           TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- audit_log_publish_flags — trigger-backed audit for every write to
+-- briefs.allow_live_publish, brands.live_publish_allowed, and
+-- system_flags.flag_value. Retention: forever (audit-grade).
+CREATE TABLE audit_log_publish_flags (
+  id          BIGSERIAL PRIMARY KEY,
+  table_name  TEXT NOT NULL,
+  entity_id   TEXT NOT NULL,                        -- brief_id, brand_id, or flag_name
+  old_value   BOOLEAN,
+  new_value   BOOLEAN,
+  actor       TEXT NOT NULL,                        -- from SET LOCAL session.actor
+  changed_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX idx_audit_log_publish_flags_changed
+  ON audit_log_publish_flags (changed_at DESC);
+
+CREATE OR REPLACE FUNCTION audit_publish_flag_change() RETURNS TRIGGER AS $$
+DECLARE
+  col_old BOOLEAN;
+  col_new BOOLEAN;
+  entity  TEXT;
+BEGIN
+  IF TG_TABLE_NAME = 'briefs' THEN
+    col_old := OLD.allow_live_publish;
+    col_new := NEW.allow_live_publish;
+    entity  := NEW.brief_id;
+  ELSIF TG_TABLE_NAME = 'brands' THEN
+    col_old := OLD.live_publish_allowed;
+    col_new := NEW.live_publish_allowed;
+    entity  := NEW.brand_id;
+  ELSIF TG_TABLE_NAME = 'system_flags' THEN
+    col_old := OLD.flag_value;
+    col_new := NEW.flag_value;
+    entity  := NEW.flag_name;
+  ELSE
+    RETURN NEW;  -- unknown table, no-op
+  END IF;
+
+  IF col_old IS DISTINCT FROM col_new THEN
+    INSERT INTO audit_log_publish_flags
+      (table_name, entity_id, old_value, new_value, actor)
+    VALUES
+      (TG_TABLE_NAME, entity, col_old, col_new,
+       COALESCE(current_setting('session.actor', true), 'unknown'));
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER briefs_publish_flag_audit
+  AFTER UPDATE ON briefs
+  FOR EACH ROW
+  WHEN (OLD.allow_live_publish IS DISTINCT FROM NEW.allow_live_publish)
+  EXECUTE FUNCTION audit_publish_flag_change();
+
+CREATE TRIGGER brands_publish_flag_audit
+  AFTER UPDATE ON brands
+  FOR EACH ROW
+  WHEN (OLD.live_publish_allowed IS DISTINCT FROM NEW.live_publish_allowed)
+  EXECUTE FUNCTION audit_publish_flag_change();
+
+CREATE TRIGGER system_flags_audit
+  AFTER UPDATE ON system_flags
+  FOR EACH ROW
+  WHEN (OLD.flag_value IS DISTINCT FROM NEW.flag_value)
+  EXECUTE FUNCTION audit_publish_flag_change();
 ```
+
+**Application responsibility.** Every transaction that writes to `briefs.allow_live_publish`, `brands.live_publish_allowed`, or `system_flags.flag_value` MUST run `SET LOCAL session.actor = '<operator-email>'` at the start. Absence is recorded as `actor = 'unknown'` in the audit log — a signal that a code path is bypassing the discipline, and Grafana alerts on `actor = 'unknown'` counts > 0.
+
+**Loki audit stream.** Audit rows are also mirrored to Loki under label `bla.audit=publish_flag_flipped` via a Postgres `LISTEN` → log-forwarder wire in Adobe MCP (operationally lives in Adobe MCP because that's the process that enforces the gates). Retention: forever (matches the table).
 
 ### 4.2 Migrations
 
