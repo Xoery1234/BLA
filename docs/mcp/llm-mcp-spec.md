@@ -218,14 +218,66 @@ v0 uses 5-minute ephemeral caching (default TTL) on the two static parts of ever
 1. **System prompt** (voice.json injection + template sentence) — cached on the last system block.
 2. **Tools array** — cached on the last tool definition.
 
-Breakpoints per request: 2 of the allowed 4. Minimum cacheable tokens: Sonnet 4.6 = 2048, Haiku 4.5 = 4096, Opus 4.7 = 4096. Voice.json injection for Revlon is ~1.5 KB ≈ 500 tokens — **below** the Sonnet 4.6 minimum unless we pad with block_specific_guidance. Pad the system prompt with the full `voice.block_specific_guidance` block (all blocks, not just the one being generated) to clear the 2048-token threshold. This is intentional — see §8.4.
+Breakpoints per request: 2 of the allowed 4.
 
-Cache economics (Sonnet 4.6):
-- Base input: $3/MTok
-- 5m cache write: $3.75/MTok (1.25×)
-- Cache read: $0.30/MTok (0.1×)
+#### 4.3.1 Per-model cache minimums (single source of truth)
 
-Expected hit rate: >80% during a brief's full fan-out (8 blocks × same voice). Breaks down to ~$0.02 per brief for the voice preamble over 8 calls.
+```ts
+// packages/shared/cost-calc/model-cache-min.ts
+export const MODEL_CACHE_MIN: Record<ModelId, number> = {
+  'claude-opus-4-7':   4096,
+  'claude-opus-4-6':   4096,
+  'claude-opus-4-5':   4096,
+  'claude-sonnet-4-6': 2048,
+  'claude-haiku-4-5':  4096,
+};
+```
+
+<sup>Anthropic prompt-caching minimums verified against [platform.claude.com/docs/en/build-with-claude/prompt-caching](https://platform.claude.com/docs/en/build-with-claude/prompt-caching) on 2026-04-19. Haiku 4.5 minimum is **4096** tokens; Sonnet 4.6 minimum is **2048** tokens; Opus 4.5/4.6/4.7 minimum is **4096** tokens. Re-verify at each major model release.</sup>
+
+#### 4.3.2 Model-aware padding (replaces the prior unconditional pad-to-2048)
+
+```ts
+const cacheMin = MODEL_CACHE_MIN[model];
+if (estimatedInputTokens < cacheMin) {
+  applyPadding(cacheMin - estimatedInputTokens); // pad to exactly cacheMin
+} else {
+  skipPadding();                                  // already cacheable
+}
+```
+
+Padding material is the serialized `voice.block_specific_guidance` block (all block-type entries, not just the one being generated) — stable content that also serves a real purpose at read time, so we're not padding with filler. Still cheaper than skipping cache: one 1.25× cache-write, many 0.1× reads thereafter.
+
+**Contract test (required):**
+
+```
+Test: prompt-cache-boundary
+
+Sonnet 4.6 (minimum 2048):  tokens ∈ {2047, 2048, 2049}
+  Expect  2047 → padded to 2048, cache_creation_input_tokens > 0 on 1st call
+          2048 → no padding,     cache_creation_input_tokens > 0 on 1st call
+          2049 → no padding,     cache_read_input_tokens > 0 on 2nd call
+
+Haiku 4.5  (minimum 4096):  tokens ∈ {4095, 4096, 4097}
+  Expect  4095 → padded to 4096, cache_creation_input_tokens > 0 on 1st call
+          4096 → no padding,     cache_creation_input_tokens > 0 on 1st call
+          4097 → no padding,     cache_read_input_tokens > 0 on 2nd call
+
+Opus 4.7   (minimum 4096):  tokens ∈ {4095, 4096, 4097}
+  (Same shape as Haiku 4.5.)
+```
+
+#### 4.3.3 Cache economics per model
+
+| Model | Input base | 5m cache write (1.25×) | Cache read (0.1×) |
+|---|---|---|---|
+| Sonnet 4.6 | $3.00 / MTok | $3.75 / MTok | $0.30 / MTok |
+| Haiku 4.5  | $1.00 / MTok | $1.25 / MTok | $0.10 / MTok |
+| Opus 4.7   | $5.00 / MTok | $6.25 / MTok | $0.50 / MTok |
+
+Expected hit rate: >80% during a brief's full fan-out (8 blocks × same voice). Per-brief amortized voice-preamble cost:
+- Sonnet 4.6 fan-out: ~$0.02
+- Haiku 4.5 fan-out: ~$0.006
 
 Source: [Prompt caching](https://platform.claude.com/docs/en/build-with-claude/prompt-caching).
 
@@ -452,9 +504,15 @@ Source: voice.json `validation_hooks.post_generation` — four checks enumerated
 
 Note: adversarial review questioned "what happens at $0.99 with one more $0.05 variant requested?" Answer: rejected at the projection step (above). Caller sees `CostCapExceededError` with `details: { cumulative, projected, cap }` so the orchestrator can surface the reason to the human via Workfront comment.
 
-### 8.4 Prompt-cache padding
+### 8.4 Prompt-cache padding (model-aware)
 
-We intentionally pad the system prompt with the full `voice.block_specific_guidance` (all blocks, not just current) to clear Sonnet 4.6's 2048-token minimum cacheable threshold. **Why:** a smaller prompt = no cache = base pricing on every call. Padding adds ~1000 tokens once (cached) instead of paying the base rate on 500 tokens × every call. Net savings after 3 calls.
+See §4.3.2 for the authoritative padding dispatcher (`MODEL_CACHE_MIN[model]`).
+
+**Why pad at all.** A prompt below the model's cache minimum is uncached entirely — every call pays base input pricing. Padding to the minimum costs one 1.25× write and unlocks 0.1× reads thereafter. Break-even after ≤3 reads on every model we use in v0.
+
+**Why dynamic, not fixed.** The earlier spec unconditionally padded every prompt to 2048. That value is correct for Sonnet 4.6 but **wrong for Haiku 4.5 and Opus** (both 4096). Under the old code, Haiku calls with a voice preamble padded to 2048 still fell below Haiku's 4096 threshold and therefore cached nothing — we paid 1.25× write cost for no reads. The model-aware dispatcher fixes this.
+
+**Padding material.** Serialized `voice.block_specific_guidance` (all block-type entries). Stable content that also serves a real purpose at read time — so we're not padding with filler.
 
 ---
 
