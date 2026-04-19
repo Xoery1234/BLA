@@ -246,6 +246,52 @@ Behavior:
 - If cancelling from `under_review`: also call `workfront.update_status` with `REJECTED` + the cancel reason as a comment, so the Workfront task closes cleanly.
 - Emits `brief.cancelled` event.
 
+### 2.6 `orchestrator.retry_brief` (H10 — operator recovery)
+
+Before this patch, briefs landing in `failed` via the dead-letter watcher or an unrecoverable generation error had no in-band path back to a live state — manual SQL was the only way out. H10 closes that gap with a first-class operator tool.
+
+**Input:**
+```ts
+interface RetryBriefInput {
+  brief_id: string;
+  actor: string;             // email/identity of operator — SET LOCAL session.actor
+  reason: string;            // free text, stored in brief_state_history.reason and audit log
+  reset_to_state?: 'received' | 'validated' | 'generating';  // default: 'received'
+  request_id?: string;
+}
+
+interface RetryBriefOutput {
+  brief_id: string;
+  previous_state: 'failed';
+  new_state: 'received' | 'validated' | 'generating';
+  version_after: number;
+}
+```
+
+**Behavior:**
+
+1. Pre-check: brief current state must be `failed`. Otherwise `IllegalTransitionError` (retryable: false).
+2. CRITICAL transition per §9.2.1 (SELECT FOR UPDATE): `failed → {reset_to_state}`.
+3. Append `brief_state_history` row with `actor` + `reason`.
+4. Emit `bla.audit=brief_retry` log line at INFO with `brief_id`, `previous_state`, `new_state`, `actor`, `reason`, `request_id`.
+5. Depending on `reset_to_state`, the normal flywheel resumes from that state:
+   - `received` → revalidate schema + re-enqueue generate.
+   - `validated` → skip revalidation, re-enqueue generate.
+   - `generating` → skip straight to generate (use when the prior failure was a transient LLM outage, not a bad brief).
+
+**Error cases:**
+- Brief not in `failed` → `IllegalTransitionError`.
+- `reason` shorter than 10 chars → `BriefInvalidError` (forces operator to document).
+- Lock timeout → `ConcurrencyConflictError` (retryable at operator level).
+
+**Idempotency:** `request_id` honored per §9.1. Replays within 10 minutes return the cached first response so operator-tooling retries are safe.
+
+**Not allowed as a target state:**
+- `under_review` (would skip the generate step — use `generating` instead).
+- `approved` / `publishing` / `published` / `done` / `rejected` / `cancelled` (only the dead-letter watcher or the normal flywheel transitions into these; bypassing the flywheel would break audit invariants).
+
+**Runbook:** see `docs/runbooks/failed-brief-recovery.md` for decision criteria (when to reset to `received` vs `validated` vs `generating`) and common root causes.
+
 ---
 
 ## 3. State machine
@@ -283,12 +329,17 @@ received ─┤                                   │
 
 cancel transitions (from any non-terminal, non-approved state):
   received | validated | generating | under_review  ──► cancelled ──► done (terminal)
+
+retry_brief transitions (H10 — operator recovery, see §2.6):
+  failed ──► received     (default: revalidate + regenerate)
+  failed ──► validated    (skip revalidation, regenerate)
+  failed ──► generating   (skip straight to generate — for transient LLM outages)
 ```
 
 **Transition rules:**
 - Forward-only in the happy path. No skipping states.
-- Terminals: `done` (reached after `published`, `rejected`, or `cancelled`), `failed`.
-- `rejected` is terminal — new brief_id required to retry.
+- Terminals: `done` (reached after `published`, `rejected`, or `cancelled`). `rejected` is terminal — new brief_id required to retry.
+- `failed` is **recoverable** via `orchestrator.retry_brief` (H10, §2.6) — only reachable target states are `received`, `validated`, `generating`.
 - `cancel` allowed up to `under_review`. After `approved`, publish must complete or be manually rolled back (v0 = manual; v1 automates).
 - Illegal transitions raise `IllegalTransitionError`, log at ERROR, emit `orchestrator.illegal_transition_total` metric — never silently swallow.
 - Every transition persisted in `brief_state_history` with actor + reason + timestamp.
