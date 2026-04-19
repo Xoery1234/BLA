@@ -399,7 +399,7 @@ Shared packages live under `packages/shared/` in the Turborepo monorepo.
 
 | Package | Purpose | Notes |
 |---|---|---|
-| `packages/shared/voice-loader` | Read `docs/brands/{brand_id}/voice.json`, TTL-cache by file mtime | TTL 60s (see §10 decision). Schema validation on load. |
+| `packages/shared/voice-loader` | Read `docs/brands/{brand_id}/voice.json`, TTL-cache by file mtime | TTL 60s (see §10 decision). Validates against `packages/shared/schemas/voice-schema.json` on load using `ajv@8` with `strict: true`. See §8.5 for fail-fast semantics. |
 | `packages/shared/prompt-builder` | Assemble system + user prompts, apply cache_control markers | Pure functions, fully unit-testable without SDK. |
 | `packages/shared/validator` | Run `voice.validation_hooks.post_generation` on output | Returns `{banned_terms_found, never_terms_found, ...}`. Never throws. |
 | `packages/shared/rate-limiter` | Client-side token-bucket limiter per model | Separate bucket per model class. |
@@ -606,6 +606,23 @@ See §4.3.2 for the authoritative padding dispatcher (`MODEL_CACHE_MIN[model]`).
 
 **Why dynamic, not fixed.** The earlier spec unconditionally padded every prompt to 2048. That value is correct for Sonnet 4.6 but **wrong for Haiku 4.5 and Opus** (both 4096). Under the old code, Haiku calls with a voice preamble padded to 2048 still fell below Haiku's 4096 threshold and therefore cached nothing — we paid 1.25× write cost for no reads. The model-aware dispatcher fixes this.
 
+### 8.5 voice.json schema validation (fail-fast on startup)
+
+**Schema:** `packages/shared/schemas/voice-schema.json` (JSON Schema draft 2020-12).
+
+**Validator:** `ajv@8` with `strict: true`. Loads the schema once per process and validates every voice.json on first read and on cache expiry.
+
+**Required fields** (validator rejects voice.json without them): `brand_id`, `version`, `voice_characteristics`, `vocabulary` (with `never_terms`), `block_specific_guidance` (with at least one entry), `llm_prompt_injection` (with `system_prompt_template`), `validation_hooks` (with `post_generation`).
+
+**Failure behavior:**
+- **First read (MCP startup for default brand):** invalid voice.json → fail-fast boot, exit code 78 (EX_CONFIG). Error message includes the ajv error path (`instancePath`, `message`, `schemaPath`) so the fix target is obvious.
+- **Lazy read (first brief for a new brand):** invalid voice.json → fail the request with `BriefInvalidError` tagged `reason: "voice_schema_invalid"`. Orchestrator transitions the brief to `failed` and surfaces the ajv error path in the Workfront comment. Subsequent briefs for the same brand also fail until voice.json is fixed (TTL cache holds the failure).
+- **Cache refresh:** invalid voice.json on re-read → continue serving from the previous valid in-memory copy, log at WARN (`bla.warn=voice_schema_stale_on_refresh`) so author sees feedback without taking the MCP down. Grafana alert at >3 WARN in 10min.
+
+**Why this matters.** Before this patch, LLM MCP read voice.json with no validation. A new brand onboarded post-Revlon (e.g., missing `voice_characteristics` or `block_specific_guidance`) would silently get default-tuned prompts at runtime — off-brand output would only surface in QA. Fail-fast on startup catches the problem before any brief lands.
+
+Schema lives in `packages/shared/schemas/` so Adobe MCP's brand-metadata checks can share it if needed.
+
 **Padding material.** Serialized `voice.block_specific_guidance` (all block-type entries). Stable content that also serves a real purpose at read time — so we're not padding with filler.
 
 ---
@@ -630,7 +647,7 @@ Fixture files: `packages/shared/__fixtures__/voice-revlon.json`, `…/brief-prod
   - Response `request-id` captured into logs + traces.
 
 ### 9.3 Contract tests
-- voice.json schema validation (JSON Schema `voice.schema.v0.json`).
+- voice.json schema validation against `packages/shared/schemas/voice-schema.json` (JSON Schema draft 2020-12). Fixture: validate `docs/brands/revlon/voice.json` succeeds; validate a synthetic minimal-but-valid voice; validate a missing-required-field case fails with expected ajv error path.
 - Tool input/output shape validation via zod schemas derived from the TypeScript interfaces in §2.
 
 ### 9.4 E2E tests (gated — run against real Anthropic API)

@@ -1,0 +1,154 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://bla.monks.dev/schemas/voice-v1.json",
+  "title": "BLA brand voice.json — v1",
+  "description": "Per-brand voice specification consumed by LLM MCP. One file per brand at docs/brands/{brand_id}/voice.json. Schema validated on LLM MCP startup; invalid voice.json fails-fast with ajv error path. See docs/mcp/llm-mcp-spec.md §6 for the consuming code.",
+  "type": "object",
+  "required": [
+    "brand_id",
+    "version",
+    "voice_characteristics",
+    "vocabulary",
+    "block_specific_guidance",
+    "llm_prompt_injection",
+    "validation_hooks"
+  ],
+  "additionalProperties": true,
+  "properties": {
+    "$schema":      { "type": "string" },
+    "brand_id":     { "type": "string", "pattern": "^[a-z][a-z0-9-]{1,30}$" },
+    "version":      { "type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+$" },
+    "last_updated": { "type": "string", "format": "date" },
+    "owner":        { "type": "string", "format": "email" },
+    "status":       { "type": "string", "enum": ["draft", "in-review", "approved", "retired"] },
+
+    "brand_positioning": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "category":            { "type": "string" },
+        "heritage":            { "type": "string" },
+        "audience_primary":    { "type": "string" },
+        "audience_secondary":  { "type": "string" },
+        "competitive_stance":  { "type": "string" }
+      }
+    },
+
+    "voice_characteristics": {
+      "type": "object",
+      "required": ["primary_traits"],
+      "additionalProperties": true,
+      "properties": {
+        "primary_traits":   { "type": "array", "minItems": 1, "items": { "type": "string" } },
+        "secondary_traits": { "type": "array", "items": { "type": "string" } },
+        "avoid_traits":     { "type": "array", "items": { "type": "string" } }
+      }
+    },
+
+    "tone_parameters": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "energy":            { "type": "string", "enum": ["low", "medium", "medium-high", "high"] },
+        "formality":         { "type": "string" },
+        "sentence_length":   { "type": "string" },
+        "perspective":       { "type": "string" },
+        "punctuation_style": { "type": "string" }
+      }
+    },
+
+    "vocabulary": {
+      "type": "object",
+      "required": ["never_terms"],
+      "additionalProperties": false,
+      "description": "never_terms is required because LLM MCP post-generation validator reads it; avoid_terms defaults to [] if absent.",
+      "properties": {
+        "preferred_terms": { "type": "array", "items": { "type": "string" } },
+        "avoid_terms":     { "type": "array", "items": { "type": "string" } },
+        "never_terms":     { "type": "array", "items": { "type": "string" }, "description": "Regulated claims. Violation = hard reject, no regenerate retry." }
+      }
+    },
+
+    "brand_pillars": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "description"],
+        "additionalProperties": true,
+        "properties": {
+          "name":        { "type": "string" },
+          "description": { "type": "string" },
+          "keywords":    { "type": "array", "items": { "type": "string" } }
+        }
+      }
+    },
+
+    "examples": {
+      "type": "object",
+      "additionalProperties": { "type": "array", "items": { "type": "string" } }
+    },
+
+    "block_specific_guidance": {
+      "type": "object",
+      "description": "Per-block-type guidance keyed by block name. At least one block entry required (LLM MCP pads prompts with the serialized map; empty map defeats caching).",
+      "minProperties": 1,
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    },
+
+    "legal_guardrails": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "regulated_claims":    { "type": "object", "additionalProperties": { "type": "string" } },
+        "required_disclaimers": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+
+    "llm_prompt_injection": {
+      "type": "object",
+      "required": ["system_prompt_template"],
+      "additionalProperties": true,
+      "properties": {
+        "system_prompt_template": { "type": "string", "minLength": 20 },
+        "inject_on":              { "type": "array", "items": { "type": "string" } },
+        "inject_conditionally":   {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["when", "inject"],
+            "properties": {
+              "when":   { "type": "string" },
+              "inject": { "type": "string" }
+            }
+          }
+        }
+      }
+    },
+
+    "validation_hooks": {
+      "type": "object",
+      "required": ["post_generation"],
+      "additionalProperties": true,
+      "properties": {
+        "post_generation": { "type": "array", "minItems": 1, "items": { "type": "string" } }
+      }
+    },
+
+    "changelog": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["version", "date"],
+        "properties": {
+          "version": { "type": "string" },
+          "date":    { "type": "string", "format": "date" },
+          "author":  { "type": "string" },
+          "notes":   { "type": "string" }
+        }
+      }
+    }
+  }
+}
