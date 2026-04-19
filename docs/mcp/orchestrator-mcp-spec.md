@@ -304,7 +304,7 @@ CREATE INDEX idx_artifacts_brief ON brief_artifacts(brief_id, artifact_type);
 CREATE TABLE webhook_events (
   id               BIGSERIAL PRIMARY KEY,
   source           TEXT NOT NULL,                   -- 'workfront'
-  event_signature  TEXT NOT NULL,                   -- hash(event_time + object_id + new.status)
+  event_signature  CHAR(64) NOT NULL,               -- SHA-256 hex, lowercase, per §8.4.1 JCS formula
   brief_id         TEXT REFERENCES briefs(brief_id),
   payload          JSONB NOT NULL,
   mtls_verified    BOOLEAN NOT NULL,
@@ -533,11 +533,53 @@ A watcher runs every 5 minutes:
 
 ### 8.4 Webhook replay-attack defense
 
-Idempotency via `webhook_events.event_signature` (unique constraint on `(source, event_signature)`). Signature = `sha256(event.new.ID || event.eventTime || event.new.approvalStatus)`.
+Idempotency via `webhook_events.event_signature` (unique constraint on `(source, event_signature)`).
 
-- Duplicate signature within 48h → 200 with `X-Duplicate: true` response-shape field; no state change.
-- `eventTime` older than 10 minutes: reject (indicates replay; Workfront normally delivers within seconds).
-- mTLS cert mismatch: 401 + audit log + metric.
+#### 8.4.1 Event signature formula (authoritative)
+
+```
+event_signature = SHA-256(canonical_json_jcs({
+  source:             string,   // "workfront" | "eds" | "manual"
+  event_id:           string,   // provider-issued (Workfront: event.new.ID; EDS: x-cdn-request-id; manual: UUID)
+  event_time_utc_iso: string,   // ISO-8601 Z, milliseconds TRUNCATED (not rounded)
+  entity_id:          string    // brief_id, or if not yet bound, the Workfront task_id
+}))
+```
+
+**Rules (invariants verified by property test in §10.1):**
+
+- **Canonicalization:** RFC 8785 JSON Canonicalization Scheme (JCS). Produces a single bytewise-canonical serialization for any JSON object, independent of key order, whitespace, or optional-field presence.
+- **Hash:** SHA-256, output as **lowercase hex, 64 chars**.
+- **Storage:** `webhook_events.event_signature CHAR(64) UNIQUE NOT NULL`.
+- **Timestamp format:** `event_time_utc_iso` is ISO-8601 in UTC with trailing `Z`, milliseconds **truncated** (not rounded). Example: `2026-04-19T14:07:23Z` — never `.234Z`, never `+00:00`. This matters because Workfront sometimes emits `2026-04-19T14:07:23.234+00:00` on retries of the same event; truncation collapses those to the same signature so dedup still fires.
+- **Missing optional field:** if `event_id` is absent on some EDS payloads, synthesize as `source + ':' + entity_id + ':' + event_time_utc_iso` so signatures remain deterministic. Document the synthesis path in the signature implementation's comment.
+
+#### 8.4.2 Replay defenses layered on top
+
+- **Duplicate signature within 48h** → 200 with `X-Duplicate: true` response-shape field; no state change. (48h matches Workfront's retry window per Adobe MCP §4.1.)
+- **`event_time_utc_iso` older than 10 minutes** vs receiver `now()` → reject (suspected replay; Workfront normally delivers within seconds). See Adobe MCP §8.4 for the ±10 min window rationale.
+- **`event_time_utc_iso` more than 10 minutes in the future** → reject (suspected clock skew attack or misconfig).
+- **mTLS cert mismatch** → 401 + audit log + metric.
+
+#### 8.4.3 Clock-skew note
+
+`event_time_utc_iso` in the signature is the **provider's claimed time**, not the receiver's. Receiver uses the ±10 min window as a replay defense but the signature uses provider time as-is. Receiver clocks kept within 60s of UTC via NTP (VPS bootstrap, see NFR §7). Metric `bla_clock_skew_ms` alerts at >5s.
+
+#### 8.4.4 Property-based test (fast-check)
+
+```ts
+it('event_signature is invariant under key order, whitespace, and optional field presence', () => {
+  fc.assert(fc.property(arbitraryEvent, (event) => {
+    const permutations = permuteEventSerialization(event);
+    // permuteEventSerialization yields: key-reordered, whitespace-inserted,
+    // null-vs-absent-optional-fields, ms-trailing-zeros variants.
+    const signatures = permutations.map(eventSignature);
+    expect(new Set(signatures).size).toBe(1);
+  }));
+});
+```
+
+The property holds because JCS canonicalization is the serialization step; any bytewise-equivalent JSON collapses to a single canonical form before hashing.
 
 ### 8.5 Brief validation failure UX
 
