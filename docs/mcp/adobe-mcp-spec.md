@@ -1,155 +1,669 @@
 # Adobe MCP — Spec v0
 
-**Status:** Outline — Claude Code to fill in technical detail
+**Status:** v0 — ready to implement (task #57)
 **Owner:** J
-**Related:** PRD v2 §3.1, §6.1
+**Last updated:** 2026-04-19
+**Related:** PRD v2 §3.1 + §6.1, `docs/NFR-PERFORMANCE-TARGETS-v0.md` §1.2, `docs/brief-schema-v0.md`, `docs/mcp/orchestrator-mcp-spec.md`, `docs/mcp/llm-mcp-spec.md`
 
 ---
 
 ## 1. Overview
 
-**Purpose:** Unified MCP wrapping all Adobe services under a single IMS S2S OAuth auth flow. v0 scope compressed to Workfront + EDS for piping-first demo. Firefly/Content-Tagging/Photoshop/etc. added as additive modules in v1.5+.
+**Purpose.** Unified MCP wrapping Adobe services behind a single auth surface. v0 scope compressed to **Workfront + EDS** per PRD v2's piping-first pivot. Firefly/Content-Tagging/Photoshop/etc. are additive modules in v1.5+.
 
-**Scope v0:**
-- Workfront API (task CRUD, status, comments, webhook subscriptions)
-- Edge Delivery Services API (preview publish, live publish, config read)
-- Unified Adobe IMS OAuth Server-to-Server authentication
+**Scope v0.**
+- **Workfront API v21** — task CRUD, status transitions, comments, event subscriptions.
+- **Edge Delivery Services admin API** — preview publish, live publish (gated), config read.
+- **DA.live source API** — write block-structured content into the authoring tree.
+- **Adobe IMS S2S OAuth** — single auth flow for Workfront. (Note: EDS does NOT use IMS — see §3.3.)
 
-**Explicitly out of scope for v0 (deferred to v1.5+):**
-- Firefly API (image generation)
-- Content Tagging API
-- Photoshop / Illustrator / InDesign / Lightroom / Substance 3D APIs
-- Frame.io V4 API
-- Audio & Video API
+**Explicitly out of scope for v0 (deferred to v1.5+).**
+- Firefly API (image generation).
+- Content Tagging API.
+- Photoshop / Illustrator / InDesign / Lightroom / Substance 3D APIs.
+- Frame.io V4 API.
+- Audio & Video API.
+- Cloud Manager (infra ops — J handles manually in v0).
 
 ---
 
 ## 2. Tool surface
 
+MCP tool names use the pattern `<service>.<verb_noun>`. Services: `workfront`, `eds`, `da` (DA.live).
+
 ### 2.1 Workfront module
 
 **`workfront.create_task`**
-- Input: `template_id`, `brief_id`, `assignees[]` (ordered approval_chain), `description`, `due_date`
-- Output: `task_id`, `workfront_url`
-- TODO: specify Workfront template naming convention (should match PRD v2 §4 isolation rules — `BLA_*` prefix)
+```ts
+interface CreateTaskInput {
+  brief_id: string;
+  template_id: string;              // Workfront template ID, must start with `BLA_`
+  project_id?: string;              // optional override; default = template's linked project
+  name: string;                     // rendered `[BLA] {name}` — prefix auto-applied if missing
+  description: string;              // markdown; rendered as Workfront HTML
+  assignees_ordered: string[];      // emails, in approval_chain order
+  due_date: string;                 // ISO-8601
+  custom_fields?: Record<string, string>; // BLA_* prefix enforced (see §8.1)
+  request_id?: string;              // idempotency
+}
+
+interface CreateTaskOutput {
+  task_id: string;                  // Workfront objCode:TASK GUID
+  workfront_url: string;            // canonical `/tasks/<id>/overview` URL
+  assigned_to: string;              // email of first assignee
+}
+```
+
+Template naming convention (per PRD v2 §4): `BLA_FlywheelReview`, `BLA_LegalSignoff`, `BLA_BrandApproval`. MCP validates the template name has `BLA_` prefix at startup (see §8.1) and refuses to issue `create_task` against a non-BLA template.
 
 **`workfront.update_status`**
-- Input: `task_id`, `status` (enum: `in_progress`, `blocked`, `approved`, `rejected`)
-- Output: confirmation + updated timestamp
+```ts
+interface UpdateStatusInput {
+  task_id: string;
+  status: "IN_PROGRESS" | "BLOCKED" | "APPROVED" | "REJECTED" | "DONE";
+  comment?: string;                 // appended as a system comment
+  request_id?: string;
+}
+
+interface UpdateStatusOutput {
+  task_id: string;
+  status: string;
+  updated_at: string;               // ISO-8601 from Workfront
+}
+```
+
+Status values map to Workfront's built-in `status` field (`NEW`, `INP`, `CPL` etc.) via an internal enum map. `APPROVED` and `REJECTED` are surface labels; they map to Workfront `approvalStatus` transitions.
 
 **`workfront.add_comment`**
-- Input: `task_id`, `comment_text`, `author_email` (optional, defaults to service account)
-- Output: `comment_id`
+```ts
+interface AddCommentInput {
+  task_id: string;
+  comment_text: string;             // markdown, Workfront renders HTML
+  author_email?: string;            // defaults to service account
+  request_id?: string;
+}
 
-**`workfront.subscribe_webhook`**
-- Input: `task_id`, `event_types[]`, `callback_url`
-- Output: `subscription_id`
-- TODO: verify Workfront supports per-task webhook subscriptions in current API version; may need org-level subscription with filter
+interface AddCommentOutput {
+  comment_id: string;
+  created_at: string;
+}
+```
 
-### 2.2 EDS module
+**`workfront.subscribe_event`**
+```ts
+interface SubscribeEventInput {
+  // v21 uses object-type + event-type subscriptions, NOT per-task.
+  object_type: "TASK" | "PROJECT" | "ISSUE" | "DOCUMENT";
+  event_types: Array<"CREATE" | "UPDATE" | "DELETE" | "SHARE">;
+  filter_expression?: string;       // Workfront filter, e.g. "status=APPROVED"
+  callback_url: string;             // must be HTTPS, Orchestrator's webhook endpoint
+  request_id?: string;
+}
+
+interface SubscribeEventOutput {
+  subscription_id: string;
+  client_certificate_info: {
+    // Workfront presents an x509 client cert; endpoint must validate it.
+    expected_issuer: string;
+    expected_cn: string;
+  };
+}
+```
+
+**Important finding.** Workfront event subscriptions are **org/object-level, NOT per-task.** You subscribe to "all TASK.UPDATE events" and filter in the callback (or via the optional `filter_expression`). The v0 subscribe call is one-per-event-type, set up at MCP startup, not per brief. Source: [Workfront Event Subscriptions](https://experienceleague.adobe.com/en/docs/workfront/using/adobe-workfront-api/event-subscriptions/event-sub-retries).
+
+**Authentication.** Workfront uses **mutual TLS** (client-certificate presented by Workfront) for webhook delivery, NOT HMAC. Our webhook endpoint must terminate TLS somewhere that exposes the peer cert. See §8.4.
+
+Source: [Workfront event-sub certs](https://experienceleague.adobe.com/en/docs/workfront/using/adobe-workfront-api/api-notes/event-sub-certs).
+
+### 2.2 EDS admin module
 
 **`eds.publish_preview`**
-- Input: `brand_id`, `brief_id`, `page_target`, `content_payload` (structured block data)
-- Output: `preview_url` (e.g. `https://main--bla--xoery1234.aem.page/revlon/<brief_id>/home`)
-- Behavior: write content to DA.live at canonical path, trigger preview build
-- TODO: specify the canonical DA.live path structure
+```ts
+interface PublishPreviewInput {
+  brand_id: string;                 // pathed into target URL
+  brief_id: string;                 // uniqueness
+  page_target: "home" | "pdp" | "campaign-lander";
+  content_payload: BlockStructuredContent;  // See §4.4 content shape
+  request_id?: string;
+}
+
+interface PublishPreviewOutput {
+  preview_url: string;   // e.g. https://main--BLA--Xoery1234.aem.page/bla-demo/<brand>/<brief_id>/<page_target>
+  content_source_url: string;       // DA.live source URL for the written doc
+  published_at: string;
+}
+```
+
+Behavior:
+1. Write content to DA.live at canonical path `/bla-demo/{brand_id}/{brief_id}/{page_target}` via `da.update_source` (§2.3).
+2. POST `https://admin.hlx.page/preview/Xoery1234/BLA/main/bla-demo/{brand_id}/{brief_id}/{page_target}` to trigger preview build.
+3. Poll `GET admin.hlx.page/status/...` until preview build = `published` (max 60s).
+4. Return preview URL.
 
 **`eds.publish_live`**
-- Input: `brand_id`, `brief_id`, `page_target`
-- Output: `live_url`
-- Behavior: promote preview to live (aem.live)
-- **v0 note:** for Revlon demo we DO NOT publish live (pilot only). This tool exists in v0 API but returns 403 unless env-flag `ENABLE_LIVE_PUBLISH=true` is set.
+```ts
+interface PublishLiveInput {
+  brand_id: string;
+  brief_id: string;
+  page_target: "home" | "pdp" | "campaign-lander";
+  allow_live_publish_ack: true;      // caller must literally pass `true`
+  request_id?: string;
+}
+
+interface PublishLiveOutput {
+  live_url: string;
+  published_at: string;
+}
+```
+
+**Double-gate (PRD v2 §4 safety invariant, non-negotiable):**
+- Env flag `ENABLE_LIVE_PUBLISH=true` must be set on the Adobe MCP process.
+- Input field `allow_live_publish_ack` must literally equal `true`.
+- AND the brief stored in orchestrator must carry `allow_live_publish: true` (orchestrator cross-checks before calling this tool — see `orchestrator-mcp-spec.md` §9).
+- If any gate fails, return HTTP 403 with `LivePublishGateError` + log at WARN.
+
+v0 for Revlon demo: **live publish gates remain OFF**. Tool is callable (returns 403) to prove the wiring end-to-end without risk.
 
 **`eds.get_config`**
-- Input: `brand_id`
-- Output: current EDS config for the brand's site
-- Read-only utility for orchestrator diagnostics
+```ts
+interface GetConfigInput {
+  brand_id: string;                 // informational only — BLA uses one repo
+}
+interface GetConfigOutput {
+  config: Record<string, unknown>;  // parsed `helix-config` response
+  apikeys: Array<{ id: string; description: string; expires_at?: string }>;
+}
+```
+
+Read-only. Calls `GET https://admin.hlx.page/config/Xoery1234/sites/BLA/content.json`. Used by orchestrator for diagnostics and by a startup smoke test.
+
+### 2.3 DA.live module
+
+**`da.update_source`**
+```ts
+interface UpdateSourceInput {
+  path: string;                     // `/bla-demo/{brand}/{brief_id}/{page}`
+  content_type: "html" | "markdown";
+  body: string;                     // serialized authored content per EDS doc conventions
+  request_id?: string;
+}
+interface UpdateSourceOutput {
+  da_url: string;
+  updated_at: string;
+}
+```
+
+Calls `POST https://admin.da.live/source/Xoery1234/BLA/{path}` with IMS user-backed bearer token (see §3.3 note about DA.live auth).
+
+**`da.get_source`**
+```ts
+interface GetSourceInput { path: string; }
+interface GetSourceOutput { body: string; content_type: string; etag?: string; }
+```
+
+Read-only — used by orchestrator to diff before overwriting and by tests to assert write success.
+
+Source: [DA.live developer docs](https://docs.da.live/developers) + [da-admin open source](https://github.com/adobe/da-admin) (authoritative API shape).
 
 ---
 
 ## 3. Auth
 
-- **Single Dev Console project:** `bla-adobe-services-dev` (deferred creation per piping-first pivot — will be created when Q6 Workfront setup kicks off)
-- **Product profile binding:** `BLA Workfront Dev` + future `BLA EDS Dev` profiles
-- **OAuth flow:** Server-to-Server (client_credentials grant)
-- **Scopes v0:** `openid`, `AdobeID`, plus Workfront + EDS specific scopes (TODO: verify exact scope strings)
-- **Token caching:** cache access_token in memory with TTL 5 minutes shy of expiry; proactive refresh
-- **Secret source:** Infisical `/bla/dev/adobe/services/` containing `client_id`, `client_secret`, `org_id`, `technical_account_id`
-- **Rotation:** TODO — define rotation policy
+Single Dev Console project: `bla-adobe-services-dev` (to be created when Q6 Workfront setup kicks off — NOT created in v0 piping-first phase). Binds to product profiles `BLA Workfront Dev` and (future) `BLA EDS Dev`.
+
+**Critical finding.** Despite PRD v2 §2's "unified Adobe IMS S2S OAuth" framing, **Edge Delivery Services does NOT use Adobe IMS.** EDS admin API uses its own API key scheme. DA.live uses IMS but via user-backed tokens, not S2S. This means Adobe MCP has **three distinct auth stores**:
+
+| Service | Auth scheme | Secret source |
+|---|---|---|
+| Workfront | Adobe IMS S2S OAuth (access_token as Bearer) | `/bla/dev/adobe/services/` |
+| EDS admin | Admin-scoped API key | `/bla/dev/adobe/eds-admin/` |
+| DA.live source | IMS user-backed bearer (S2S token tied to provisioned DA service user) | `/bla/dev/adobe/da-live/` |
+
+This is a deviation from the PRD's one-auth-flow model. Flagging to J — see §11 known gaps. It does not block v0 and the cost is one extra secret path; still worth knowing when documenting the architecture.
+
+Source: [EDS admin API keys](https://www.aem.live/docs/admin-apikeys).
+
+### 3.1 Adobe IMS S2S OAuth (Workfront)
+
+- **Token endpoint:** `POST https://ims-na1.adobelogin.com/ims/token/v3`
+- **Grant type:** `client_credentials`
+- **Form body** (in request body, NOT query string — Adobe docs explicitly warn against URL-logging): `grant_type=client_credentials`, `client_id`, `client_secret`, `scope`
+- **Scope format:** **Adobe uses comma-separated scopes** in a single `scope` param (not space-separated, unlike generic OAuth 2.1). Scope string for Workfront: `openid,AdobeID,profile,additional_info.projectedProductContext`. **There is no `workfront_api` scope** — authorization is enforced by the product profile attached to the credential in Dev Console.
+- **Response:** `{"access_token":"…","token_type":"bearer","expires_in":86399}` (~24h).
+- **Token caching:** in-memory per process, TTL `expires_in - 300s` (refresh 5 min before expiry). Proactive refresh on next request if within 60s of expiry.
+
+Gotcha: most OAuth 2.1 libraries default to space-separated scopes and will silently get `invalid_scope` from IMS. Override the separator in `packages/shared/ims-client`.
+
+Source: [Adobe IMS S2S](https://developer.adobe.com/developer-console/docs/guides/authentication/ServerToServerAuthentication/ims).
+
+### 3.2 Workfront API auth
+
+Pass the IMS access_token as `Authorization: Bearer <token>` on the Workfront REST base URL `https://<tenant>.my.workfront.com/attask/api/v21.0/...`. **No session-exchange step** — older `sessionID` flow is deprecated for IMS-enabled Workfront orgs. The Technical Account associated with the Dev Console credential auto-provisions as a Workfront user and inherits permissions from that user record.
+
+Source: [Workfront API auth guide](https://developer.adobe.com/workfront-apis/guides/gaining-access/).
+
+### 3.3 EDS admin API key
+
+Separate from IMS. Create via one-time admin call:
+```
+POST https://admin.hlx.page/config/Xoery1234/sites/BLA/apiKeys.json
+```
+
+Key returned once; stored in Infisical at `/bla/dev/adobe/eds-admin/api_key`. Pass as `Authorization: Bearer <key>` OR `X-Auth-Token: <key>` on subsequent admin calls.
+
+**Rotation:** quarterly via the same admin endpoint (POST creates new, DELETE revokes old). Keep a 24h overlap for zero-downtime rotation.
+
+Source: [EDS admin API keys](https://www.aem.live/docs/admin-apikeys).
+
+### 3.4 DA.live auth
+
+IMS-backed bearer token from a provisioned DA service user. Token obtained via the same IMS token endpoint as §3.1 but with a DA-specific scope (to be confirmed during Q9 setup — see §11). Secret path: `/bla/dev/adobe/da-live/`.
+
+### 3.5 Secret paths (Infisical)
+
+Per PRD v2 §4 isolation protocol and [Infisical folder rules](https://infisical.com/docs/documentation/platform/folder) (folder names: letters, numbers, dashes — no underscores):
+
+```
+/bla/dev/adobe/services/        # Workfront IMS S2S
+  client_id
+  client_secret
+  org_id
+  technical_account_id
+  workfront_tenant              # <tenant>.my.workfront.com
+/bla/dev/adobe/eds-admin/       # EDS admin key (rotatable)
+  api_key
+  github_owner                  # Xoery1234
+  github_repo                   # BLA
+/bla/dev/adobe/da-live/
+  service_user_client_id
+  service_user_client_secret
+```
+
+Prod paths mirror with `/bla/prod/adobe/...`.
+
+### 3.6 Rotation policy
+
+- **IMS client secret:** 90 days. Adobe Dev Console supports two side-by-side secrets — overlap 24h, rotate, revoke old.
+- **EDS admin API key:** quarterly. POST/DELETE rotation with 24h overlap.
+- **DA.live service user:** aligns with IMS (90 days).
+
+Calendar cron entries owned by J. Monitor expiry via `adobe_mcp_credential_days_until_expiry` gauge (§6).
 
 ---
 
 ## 4. External dependencies
 
-### 4.1 Workfront
-- API base: TODO — verify current base URL for Monks Workfront instance (`<tenant>.my.workfront.com/attask/api/v21.0`)
-- Auth: access_token from IMS passed as `Authorization: Bearer` or specific Workfront session header (TODO: verify — Workfront auth via Adobe IMS may need `sessionID` exchange)
-- API version: **v21** (breaking change in v21: multi-select fields now arrays)
-- Rate limits: TODO — verify current Workfront API rate limits
+### 4.1 Workfront REST v21
 
-### 4.2 Edge Delivery Services
-- API base: TODO — verify (likely `admin.hlx.page` or similar for Helix 5)
-- Auth: access_token from IMS
-- Rate limits: TODO
+- **Base URL:** `https://<tenant>.my.workfront.com/attask/api/v21.0`
+- **API version:** v21 (released 2025-10-23). v20 supported through 28.4 release (April 2028) — we start on v21.
+- **Breaking changes from v20:**
+  - Event Subscriptions v2 is default; multi-select fields always-array (previously sometimes scalar).
+  - `AssignmentBillingRole` object + fields removed.
+- **Rate limits:** Not officially published for core `/attask` REST. Empirical limits enforced via 429/503. **Policy: assume undocumented throttling; build backoff on 429/503 and do not budget to a known RPS.** Fusion-layer webhook rate limit is 100 req/s (relevant only if we route through Fusion — we don't).
+- **Event subscription retries:** 11 retries over ~48h on non-2xx. First retry ~1.5 min, escalating.
+- **Webhook delivery timeout:** endpoint must return 2xx within **5 seconds** or the delivery counts as failed.
+
+Sources:
+- [Workfront v21 release notes](https://experienceleague.adobe.com/en/docs/workfront/using/adobe-workfront-api/api-notes/new-api-version-21)
+- [Event subscription retries](https://experienceleague.adobe.com/en/docs/workfront/using/adobe-workfront-api/event-subscriptions/event-sub-retries)
+
+### 4.2 Edge Delivery Services admin API
+
+- **Base URL:** `https://admin.hlx.page/` (unchanged despite `hlx.live → aem.live` rebrand — admin control plane kept the `admin.hlx.page` hostname).
+- **Key endpoints:**
+  - `POST /preview/{org}/{repo}/{ref}/{path}` — preview publish.
+  - `POST /live/{org}/{repo}/{ref}/{path}` — live publish.
+  - `DELETE /preview/...` / `DELETE /live/...` — unpublish.
+  - `GET /status/{org}/{repo}/{ref}/{path}` — build status.
+  - `GET /config/{org}/sites/{site}/content.json` — config read.
+- **Rate limits:** 200 req/s per source IP across `*.aem.live`, `*.aem.page`, `admin.hlx.page`. Excess returns `429`. Upstream throttling wraps as `503` with `x-error: (429) <message>` header — **parse `x-error` before treating a 503 as genuine server error**, otherwise retry loops will hammer an already-throttled service.
+- **Auth:** API key per §3.3.
+
+Sources:
+- [EDS architecture](https://www.aem.live/docs/architecture)
+- [EDS rate limits](https://www.aem.live/docs/limits)
+
+### 4.3 DA.live source API
+
+- **Base URL:** `https://admin.da.live/source/{org}/{repo}/{path}`
+- **Methods:** `GET` (read), `POST`/`PUT` (write), `DELETE` (remove).
+- **Auth:** IMS-backed bearer (§3.4).
+- **Path convention:** mirrors the public preview path. `/bla-demo/{brand}/{brief_id}/{page}` in DA maps to the preview URL at the same pathname.
+
+Authoritative shape: verify against [`adobe/da-admin` repo](https://github.com/adobe/da-admin) route definitions before shipping — docs.da.live is thin.
+
+### 4.4 Content payload shape
+
+`content_payload` passed to `eds.publish_preview` is a normalized block-structured form:
+
+```ts
+interface BlockStructuredContent {
+  page_metadata: {
+    title: string;
+    description: string;
+    template: string;                // e.g. "pdp"
+    brand: string;                   // e.g. "revlon"
+  };
+  blocks: Array<{
+    block_name: string;              // e.g. "product-hero", one of the 8 block types
+    block_options?: string[];        // e.g. ["h1"] — maps to da.live block-name class suffixes
+    content: Record<string, unknown>; // block-specific, matches the block's model in _<name>.json
+  }>;
+}
+```
+
+MCP serializes `blocks[]` into DA.live's authored document shape (table-per-block convention) and writes it to the source path. The `block_name` + field names must exactly match the `_<name>.json` UE component-definition models in `/blocks/*`.
 
 ---
 
 ## 5. Internal dependencies
 
-- `packages/shared/ims-client` — Adobe IMS OAuth client with token caching (reused by Adobe MCP and any future Adobe-integrated service)
-- `packages/shared/retry` — exponential backoff with jitter
-- `packages/shared/telemetry` — LGTM emitter
+Shared packages (same Turborepo layout as LLM MCP):
+
+| Package | Purpose |
+|---|---|
+| `packages/shared/ims-client` | Adobe IMS S2S client with token caching + comma-separated scope handling |
+| `packages/shared/http-retry` | Exponential backoff + jitter, respects `Retry-After`, per-service policies |
+| `packages/shared/circuit-breaker` | Per-service circuit breakers |
+| `packages/shared/mtls-server` | Webhook endpoint TLS termination exposing peer cert (for Workfront mTLS) |
+| `packages/shared/telemetry` | OTLP emitter |
+| `packages/shared/infisical-client` | Universal Auth machine-identity wrapper (shared with LLM MCP) |
+| `packages/shared/errors` | `AdobeMcpError` hierarchy (§7.1) |
+| `packages/shared/da-serializer` | Block-structured content → DA.live authored HTML |
 
 ---
 
 ## 6. Observability
 
-Emit per call:
-- Metric: `adobe_mcp_<service>_latency_ms` (service = `workfront` | `eds`)
-- Metric: `adobe_mcp_<service>_error_total` (tagged by error_class)
-- Metric: `adobe_mcp_ims_token_refresh_total`
-- Trace: full span tagged by `service`, `tool`, `brief_id`
-- Log: structured JSON, redact tokens and brief content
+All metrics tagged by `service` label (`workfront` | `eds` | `da` | `ims`) — per the per-module routing inside Adobe MCP.
+
+### 6.0 Latency SLOs (per NFR §1.2)
+
+| Tool | v0 P95 | v1 P95 |
+|---|---|---|
+| `workfront.create_task` | ≤ 3s | ≤ 2s |
+| `workfront.update_status` | ≤ 1.5s | ≤ 1s |
+| `workfront.add_comment` | ≤ 1.5s | ≤ 1s |
+| `workfront.subscribe_event` | ≤ 3s | ≤ 2s |
+| `eds.publish_preview` | ≤ 10s | ≤ 6s |
+| `eds.publish_live` | ≤ 10s | ≤ 6s |
+| `eds.get_config` | ≤ 1s | ≤ 500ms |
+| `da.update_source` | ≤ 5s | ≤ 3s |
+| `da.get_source` | ≤ 1s | ≤ 500ms |
+
+Measured via `adobe_mcp_latency_seconds{service,tool}` P95. Grafana alert on 5-min breach.
+
+
+### 6.1 Metrics
+
+| Metric | Type | Labels | Notes |
+|---|---|---|---|
+| `adobe_mcp_requests_total` | counter | `service`, `tool`, `status` | `status ∈ {ok, auth_fail, rate_limit, not_found, validation_fail, service_unavailable, timeout, unknown}` |
+| `adobe_mcp_latency_seconds` | histogram | `service`, `tool` | Buckets: `.1, .25, .5, 1, 2.5, 5, 10, 30` |
+| `adobe_mcp_retries_total` | counter | `service`, `tool`, `reason` | `reason ∈ {rate_limit, 5xx, network}` |
+| `adobe_mcp_circuit_state` | gauge | `service` | `0=closed, 1=open, 2=half-open` |
+| `adobe_mcp_ims_token_refresh_total` | counter | `proactive` | `proactive ∈ {true, false}` |
+| `adobe_mcp_ims_token_seconds_remaining` | gauge | (none) | For expiry alerting. |
+| `adobe_mcp_credential_days_until_expiry` | gauge | `credential` | `credential ∈ {ims_client_secret, eds_api_key, da_service_user}` — alert at ≤14d |
+| `adobe_mcp_webhook_received_total` | counter | `verified` | mTLS cert verification result |
+| `adobe_mcp_eds_publish_total` | counter | `mode`, `gate_passed` | `mode ∈ {preview, live}`, `gate_passed ∈ {true, false}` |
+| `adobe_mcp_workfront_subscription_active` | gauge | `object_type`, `event_type` | Confirms our subscriptions are live |
+
+### 6.2 Traces
+
+Span-per-tool-call. Root-span attributes:
+- `bla.brief_id`, `bla.brand_id`, `bla.tool_name`
+- `adobe.service` — `workfront | eds | da`
+- `adobe.request_id` — Workfront returns `X-Request-ID`, EDS returns `x-cdn-request-id`
+- `http.request.method`, `http.response.status_code`, `url.full`
+
+Child spans for auth (`ims.token_refresh`), retries (`http.retry`), payload serialization (`da.serialize`).
+
+### 6.3 Logs
+
+Structured JSON to stdout. Labels: `service`, `env`, `level`.
+
+**Security redaction (mandatory):**
+- Never log `x-api-key`, `Authorization`, `client_secret`, raw IMS tokens. Redact to `<redacted:16>`.
+- Never log webhook `X-Client-Certificate` contents beyond subject CN.
+- Brief content and generated copy at INFO are summarized (first 200 chars); full at DEBUG.
 
 ---
 
 ## 7. Error handling
 
-- TODO: define retry policy per service (Workfront 429 retry-after, EDS rate limits)
-- TODO: define circuit breaker
-- TODO: classify errors:
-  - `auth_fail` (bubble up immediately, do not retry)
-  - `rate_limit` (retry with backoff)
-  - `not_found` (bubble up to orchestrator for decision)
-  - `validation_fail` (reject with detail)
-  - `service_unavailable` (retry with longer backoff)
-  - `unknown` (log loudly, bubble up)
+### 7.1 Error class hierarchy
+
+```ts
+class AdobeMcpError extends Error {
+  readonly code: string;
+  readonly retryable: boolean;
+  readonly service: "workfront" | "eds" | "da" | "ims";
+  readonly http_status?: number;
+  readonly adobe_request_id?: string;
+  readonly details?: unknown;
+}
+
+class AuthFailError extends AdobeMcpError           { retryable = false; }  // 401, invalid_grant
+class ScopeInsufficientError extends AdobeMcpError  { retryable = false; }  // 403 with scope detail
+class RateLimitError extends AdobeMcpError          { retryable = true;  }  // 429 or wrapped 503
+class NotFoundError extends AdobeMcpError           { retryable = false; }  // 404
+class ValidationFailError extends AdobeMcpError     { retryable = false; }  // 400
+class IsolationViolationError extends AdobeMcpError { retryable = false; }  // §8.1 guards
+class ServiceUnavailableError extends AdobeMcpError { retryable = true;  }  // 500, 502, 503
+class TimeoutError extends AdobeMcpError            { retryable = true;  }  // deadline exceeded
+class LivePublishGateError extends AdobeMcpError    { retryable = false; }  // double-gate fail
+class WebhookVerifyFailError extends AdobeMcpError  { retryable = false; }  // mTLS cert invalid
+class UnknownUpstreamError extends AdobeMcpError    { retryable = false; }
+```
+
+### 7.2 Retry policy
+
+**Per-service policies:**
+
+| Service | Retry on | Backoff | Max attempts | Deadline |
+|---|---|---|---|---|
+| Workfront | 429 (honor `Retry-After`), 500/502/503 | Exp. base 2s, factor 2, max 30s, jitter ±20% | 5 | 60s |
+| EDS admin | 429, 503 (after parsing `x-error`) | Exp. base 1s, factor 2, max 20s | 5 | 45s |
+| DA.live | 429, 5xx | Exp. base 1s, factor 2, max 20s | 3 | 30s |
+| IMS | 429, 5xx | Exp. base 2s, factor 2, max 15s | 3 | 20s |
+
+**Never retry:** 4xx (except 429 and 408), `AuthFailError`, `ScopeInsufficientError`, `IsolationViolationError`, `LivePublishGateError`.
+
+### 7.3 Circuit breaker
+
+Per-service. Trip thresholds:
+- Workfront: 50% error rate over 20-req sliding window OR 5 consecutive 5xx.
+- EDS: 30% error rate OR 3 consecutive 5xx (tighter because rate-limit upstream wrap is deceptive).
+- DA.live: 30% OR 3 consecutive 5xx.
+- IMS: 50% OR 3 consecutive auth failures (separate because IMS outage takes all services with it).
+
+Half-open after 30s, single probe, close on success.
+
+### 7.4 Classification tree
+
+- **`401`** → `AuthFailError` (log IMS token age, probably expired; force refresh + retry once).
+- **`403` + scope mentioned in body** → `ScopeInsufficientError` (bubble up — fix Dev Console, not a retry).
+- **`403` without scope detail, EDS** → `LivePublishGateError` if call was `publish_live`; else `AuthFailError`.
+- **`404`** → `NotFoundError` (bubble up).
+- **`400`** → `ValidationFailError` (reject, include upstream detail).
+- **`429`** → `RateLimitError` (retry with `Retry-After`).
+- **`503` + `x-error: (429) …`** (EDS) → `RateLimitError`.
+- **`5xx` otherwise** → `ServiceUnavailableError`.
+- **Network timeout / DNS fail** → `TimeoutError`.
+- **Unrecognized** → `UnknownUpstreamError` (log loudly, alert).
 
 ---
 
 ## 8. Safety guardrails
 
-- **Isolation protocol enforcement:** every Workfront task created must have `BLA_` prefix on template or visible `[BLA]` tag on name; every EDS publish path must be under `/bla-*` or `/<brand>/<brief_id>/*`
-- **Publish gate:** `eds.publish_live` requires `ENABLE_LIVE_PUBLISH=true` env flag AND `allow_live_publish=true` in brief metadata. Double-gate for safety.
-- **Rate limit pre-check:** before calling downstream Adobe API, check local budget counter; reject if exceeded
-- **Credential scope audit:** on startup, log which scopes the current IMS token has; fail startup if required scopes missing
+### 8.1 Isolation-protocol enforcement (PRD v2 §4, hard rules)
+
+MCP refuses at tool-call time:
+
+**Workfront:**
+- `create_task` template must start with `BLA_`. Otherwise → `IsolationViolationError`.
+- Task name rendered with `[BLA] ` prefix if not already present.
+- Custom fields must start with `BLA_` prefix. Otherwise → `IsolationViolationError`.
+
+**EDS:**
+- All publish paths must be under `/bla-demo/*` or `/{brand}/bla-*/*` (v0 uses `/bla-demo/` exclusively).
+- `publish_live` additionally gated per §2.2.
+
+**DA.live:**
+- Writes refused outside `/bla-demo/*`.
+
+**Startup check:** MCP validates on boot that its bound product profile is exactly `BLA Workfront Dev` (via `GET /people/me` on Workfront) and the EDS org/repo is `Xoery1234/BLA`. Mismatch → fail startup with explicit error.
+
+### 8.2 Scope audit
+
+On startup, call IMS `/ims/validate_token` equivalent (or issue a known-scope test call) and log which scopes the current token advertises. If required scopes missing → fail startup.
+
+### 8.3 Rate-limit pre-check
+
+Before a downstream call, check local budget counter (§6 metrics feed this). If consecutive 429s exceed threshold → short-circuit with `RateLimitError` rather than hit the service.
+
+### 8.4 Webhook authentication (mTLS)
+
+Workfront webhooks use mTLS, not HMAC. Implementation:
+1. Adobe MCP embeds (or has upstream) a TLS terminator that extracts the client certificate and passes its subject CN + issuer CN via `X-Client-Subject` / `X-Client-Issuer` headers.
+2. `mtls-server` package validates those against the expected values from `subscribe_event` response (stored per subscription in memory + Postgres for restart survival).
+3. On mismatch → return 401, increment `adobe_mcp_webhook_received_total{verified="false"}`, log at WARN.
+
+The optional `authToken` header echoed by Workfront is also validated as a belt-and-suspenders check.
+
+**Replay defense (clock skew tolerant):**
+- Inbound webhooks are deduplicated by `event_signature = sha256(eventTime || objectId || newStatus)` at orchestrator (see `orchestrator-mcp-spec.md` §8.4).
+- Acceptance window for `eventTime`: **±10 minutes** from current server time. Rejects events older than 10 minutes (suspected replay) and events from > 10 minutes in the future (suspected clock skew attack or misconfig).
+- Clock skew: we assume VPS clocks within 60s of UTC via NTP. 10-minute window tolerates meaningful skew while still rejecting clear replays.
+
+### 8.5 Live publish triple gate (fail-closed)
+
+Three independent gates. ALL required for `eds.publish_live` to succeed.
+
+| # | Gate | Owner | Where enforced |
+|---|---|---|---|
+| 1 | Env var `ENABLE_LIVE_PUBLISH=true` | Adobe MCP process env | Adobe MCP startup + per-call |
+| 2 | Input `allow_live_publish_ack: true` | Caller (orchestrator) | Adobe MCP per-call |
+| 3 | Brief `allow_live_publish: true` | Orchestrator (brief schema) | Orchestrator per-call (see `orchestrator-mcp-spec.md` §9.4) |
+
+**Fail-closed on unreadable gate state:**
+- If env var unreadable (process-env corruption is improbable but worth naming) → treat as `false`.
+- If input field missing → treat as `false` (NOT as default-true).
+- If brief metadata unreachable (orchestrator DB down) → orchestrator returns error BEFORE calling this tool; Adobe MCP never sees a gated call with missing brief state.
+
+**Any one gate failing → `LivePublishGateError` (retryable: false).**
+
+**Audit log (always, even on rejection):**
+- Every call to `eds.publish_live` — accepted or rejected — writes a structured log line at INFO including:
+  - `brief_id`, `brand_id`, `page_target`
+  - `gate_1_env_flag`, `gate_2_input_ack`, `gate_3_brief_flag` (each true/false)
+  - `result` = `accepted | rejected`
+  - `rejected_reason` if any gate false
+  - `caller_identity` (Infisical machine identity of the calling orchestrator)
+- Log is forwarded to Loki under label `bla.audit=live_publish`. Retention: forever (audit-grade).
+
+**v0 for Revlon demo:** gates #1 and #3 both OFF. `eds.publish_live` is reachable but always returns `LivePublishGateError`. Verifies wiring without risk.
+
+**Bypass paths checked:**
+- `eds.publish_preview` does NOT call through `eds.publish_live` internally — preview and live are independent code paths.
+- No testing shortcut; `publish_live` is the only path. Tests verify rejection by passing partial gates.
+- Staging env defaults `ENABLE_LIVE_PUBLISH=true` (so we can test the happy path); prod env defaults `false`. **Never the reverse** (per NFR §11 trade-off note).
+
+### 8.6 Idempotency
+
+Every tool call accepts `request_id`. MCP caches `(request_id → response)` for 10 minutes in-memory; replay returns cached response with `X-Replayed: true` header-equivalent field in the MCP response metadata.
 
 ---
 
 ## 9. Testing strategy
 
-- Unit: IMS client token refresh, error classification, payload builders
-- Integration: mocked Adobe API, verify tool signatures + error paths
-- Contract: OpenAPI spec validation for each Adobe service
-- E2E: real Adobe API calls against isolated `bla-adobe-services-dev` project (only when creds are provisioned — post Phase 0.A)
-- Fixture-based: golden Workfront task JSON, golden EDS publish request
+### 9.1 Unit tests
+- `ims-client`: scope separator (commas not spaces), token refresh timing, proactive refresh threshold.
+- `http-retry`: per-service policy application, `Retry-After` parsing, EDS `x-error` wrapping detection.
+- `circuit-breaker`: trip, half-open probe, close, independent per service.
+- `da-serializer`: block-structured → DA HTML round-trips golden files.
+- Isolation guards: every prefix check, every path check.
+
+### 9.2 Integration tests
+- Mocked Adobe APIs (`msw` or `nock`):
+  - IMS token exchange round-trip.
+  - Workfront task create, update status, add comment, subscribe.
+  - EDS preview publish → status poll → return.
+  - EDS live publish → double-gate rejection (each gate tested independently).
+  - DA.live write + read.
+  - 429 triggers backoff on each service.
+  - 503 + `x-error:(429)` on EDS classified as `RateLimitError`, not `ServiceUnavailableError`.
+
+### 9.3 Contract tests
+- Tool input/output zod schemas derived from TypeScript interfaces in §2.
+- Isolation-protocol rules (one test per rule).
+
+### 9.4 E2E tests (gated — run against isolated `bla-adobe-services-dev`)
+- Only run when IMS creds provisioned (post-Phase 0.A).
+- Fixtures: `packages/shared/__fixtures__/workfront-task.json`, `…/eds-publish-request.json`, `…/da-source-write.json`.
+- Budget cap: 10 Workfront test tasks per test run; cleaned up in `afterAll`.
+
+### 9.5 mTLS webhook tests
+- Standalone test using local cert authority (generate CA, sign Workfront-shaped cert, reject others).
+- Expired cert → `WebhookVerifyFailError`.
+- Wrong CN → `WebhookVerifyFailError`.
+- Missing cert → 401.
+
+### 9.6 Chaos tests
+- Workfront 503 + `Retry-After: 60` → respects retry, one retry within 60s after deadline reset.
+- EDS 503 + `x-error:(429) throttled` → single retry at exponential backoff, not hammering.
+- IMS token expiry during in-flight request → proactive refresh kicks in, request succeeds without 401.
+- mTLS cert missing → 401 + metric.
+- Circuit breaker open → fail-fast without upstream call.
 
 ---
 
-## 10. Open questions
+## 10. Resolved decisions
 
-- Workfront auth via Adobe IMS — is the access_token passed directly or does Workfront require a session exchange? Needs validation during Q6 setup
-- EDS publish endpoint — is it `admin.hlx.page` or a different Adobe-branded endpoint for paid EDS tier? Verify during Q6/Q9 setup
-- Webhook delivery — Workfront webhook retries on 5xx? Orchestrator must be idempotent on webhook processing
-- Live publish safety — current double-gate sufficient? Consider a third gate (MFA or out-of-band approval) for v1.5
-- When Firefly is added in v1.5, does it get its own OAuth project or share `bla-adobe-services-dev`? Recommend sharing since credits are per-profile not per-project
+| Question | v0 decision | Rationale |
+|---|---|---|
+| Workfront IMS → Bearer vs sessionID | **Bearer directly**, no session exchange. | Verified: IMS-enabled orgs accept IMS access_token as Bearer on `/attask/api/v21.0`. |
+| Webhook per-task vs org-level | **Org-level by `(object_type, event_type)`**; filter in callback. | Workfront v21 subscription model is object-level, not per-task. |
+| EDS endpoint | **`admin.hlx.page`** (NOT `api.aem.live`). | Control plane didn't rebrand. Runtime hostnames did. |
+| Live publish gate count | **Triple-gate** (env flag + input ack + brief flag). | Safety invariant. Orchestrator owns the brief-flag gate (see orchestrator §9). |
+| Firefly shared project in v1.5 | **Share `bla-adobe-services-dev`**. | Credits are per product-profile, not per Dev Console project. One project = simpler rotation. |
+| Scope strings Workfront | **`openid,AdobeID,profile,additional_info.projectedProductContext`**. | Verified — no distinct `workfront_api` scope exists; product-profile attachment provides authorization. |
+| Rate limit budget | **Empirical** (no published RPS for Workfront REST). Build backoff not budgeting. | Experience League doesn't publish core `/attask` RPS; Fusion tier is 100 req/s but we don't route through Fusion. |
+| EDS 503 wrapping | **Parse `x-error` before retry classification.** | Otherwise retry-on-5xx loops amplify rate-limit pressure. |
+| Webhook auth mechanism | **Mutual TLS + optional `authToken`** — NOT HMAC. | Verified in Workfront event-sub-certs docs. Significant impact on hosting choice. |
+| JWT | **Never.** | EOL 2025-01-01 (SDK shut off). IMS S2S OAuth only. |
+
+---
+
+## 11. Known gaps / deferred
+
+- **Three-auth-store deviation from PRD v2 §2.** EDS uses admin API keys (not IMS); DA.live uses IMS user-backed tokens (not pure S2S). Flag for J — the "unified Adobe IMS" architecture narrative is aspirational for EDS. Worth noting in the next PRD revision.
+- **DA.live exact auth flow.** Service-user IMS path needs concrete confirmation during Q9 setup. v0 spec reserves `/bla/dev/adobe/da-live/` path but scope strings and token-exchange specifics TBD. Tracked as BLA-73.
+- **Workfront rate limits documented.** No official RPS for core REST. Build watch on `adobe_mcp_requests_total{service="workfront",status="rate_limit"}` to empirically characterize. Could be worth an SRE deep-dive in v1.
+- **mTLS termination choice.** Running `mtls-server` inline in Node.js works but is fiddly behind managed load balancers. Alternative: nginx + `proxy_ssl_verify_client on` forwarding peer-cert headers. v0: inline Node (single-VPS deploy). v1 if we ever run behind a managed LB, revisit.
+- **`eds.get_config` parse shape.** JSON blob unmarshalled as-is. No typed wrapper v0 — add in v1 when we care about specific keys.
+- **Firefly, Content Tagging, Photoshop, Illustrator, InDesign, Lightroom, Substance 3D, Frame.io, Audio & Video.** All out of scope v0 per PRD v2 §6.1. Architectural seam is the per-service module pattern — add a new module under `src/services/<name>/` when Phase 1.5 kicks off.
+- **Multi-org.** v0 assumes single tenant (Monks' IMS org). Multi-org support needs a tenancy layer in `ims-client` and per-org Infisical paths. Deferred to whenever tenant #2 lands.
+- **Frame.io V4.** Entitled but off. v1.1+ wires as a sibling module; reuses the IMS client.
+
+---
+
+## Sources
+
+- [Adobe IMS Server-to-Server Authentication](https://developer.adobe.com/developer-console/docs/guides/authentication/ServerToServerAuthentication/ims)
+- [Workfront API — Gaining Access](https://developer.adobe.com/workfront-apis/guides/gaining-access/)
+- [Workfront API v21 release notes](https://experienceleague.adobe.com/en/docs/workfront/using/adobe-workfront-api/api-notes/new-api-version-21)
+- [Workfront Event Subscription Retries](https://experienceleague.adobe.com/en/docs/workfront/using/adobe-workfront-api/event-subscriptions/event-sub-retries)
+- [Workfront Event Subscription Certificates (mTLS)](https://experienceleague.adobe.com/en/docs/workfront/using/adobe-workfront-api/api-notes/event-sub-certs)
+- [EDS architecture](https://www.aem.live/docs/architecture)
+- [EDS admin API keys](https://www.aem.live/docs/admin-apikeys)
+- [EDS limits](https://www.aem.live/docs/limits)
+- [DA.live developer docs](https://docs.da.live/developers)
+- [da-admin open source repo](https://github.com/adobe/da-admin)
+- [MCP spec 2025-11-25](https://modelcontextprotocol.io/specification/2025-11-25)
+- [Infisical folder naming](https://infisical.com/docs/documentation/platform/folder)
+- [Grafana Alloy OTLP → LGTM](https://grafana.com/docs/alloy/latest/collect/opentelemetry-to-lgtm-stack/)
+- [OTel trace semantic conventions](https://opentelemetry.io/docs/specs/semconv/general/trace/)
