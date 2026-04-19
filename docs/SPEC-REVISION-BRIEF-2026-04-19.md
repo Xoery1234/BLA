@@ -481,13 +481,26 @@ Add runbook entry: `docs/runbooks/failed-brief-recovery.md` — when to use each
 - **M8** Infisical path validator: `packages/shared/infisical-path-validator.ts` with unit tests asserting no underscores, only `[a-z0-9-/]`.
 
 ### Tranche 3 acceptance
-- [ ] Patch 3.1 merged — race test shows cap enforcement under parallel load
-- [ ] Patch 3.2 merged — webhook P99 ack latency under 2s in load test
-- [ ] Patch 3.3 merged — kill switch + per-brand gate + audit log operational
-- [ ] Patch 3.4 merged — critical transitions use row lock; metric + alert live
-- [ ] Patch 3.5 merged — retry_brief tool + runbook shipped
-- [ ] Cheap MEDIUMs folded in
-- [ ] Append `## Tranche 3 complete` to this file
+- [x] Patch 3.1 merged — `1e1c2ed` — SELECT FOR UPDATE ledger pattern + daily-cap variant + race test spec
+- [x] Patch 3.2 merged — `e85f1d0` — Stage 1 fast-ack + Stage 2 LISTEN/NOTIFY async consumer + schema addendum + load test
+- [x] Patch 3.3 merged — `81864af` — kill switch (gate 0) + per-brand allow list (gate 4) + audit_log_publish_flags trigger
+- [x] Patch 3.4 merged — `748199c` — CRITICAL (row-lock) vs OBSERVATIONAL (optimistic) transition classification + lock-timeout + metrics/alerts
+- [x] Patch 3.5 merged — `ab07c34` — orchestrator.retry_brief tool + state-machine extension + docs/runbooks/failed-brief-recovery.md
+- [x] Cheap MEDIUMs folded in — `27483e6` — M1 chrony + bla_clock_skew_ms, M2 deterministic subscription naming, M4 request-start-pinned UTC boundary, M8 noted (already landed in step 2)
+- [x] Append `## Tranche 3 complete` to this file
+
+## Tranche 3 complete — 27483e6 2026-04-19
+
+Closed: H5, H6, H7, H9, H10, plus cheap MEDIUMs M1, M2, M4, M8.
+Six commits (5 patches + 1 cleanup). All HIGH findings now closed
+spec-side (10/10). Resolution appendix updated in
+`docs/spec-review-findings-2026-04-19.md`.
+
+Phase 1 Sprint 1 complete. Per J's directive, waiting for Phase 1
+Sprint 2 kickoff before starting any MCP business logic. Remaining
+work in this sprint: deferred to Sprint 2 brief — M3 Drizzle vs
+Prisma re-justification, task #54 VPS + Infisical provisioning,
+task #66 PAT rotation, tasks #70/#71 Adobe setup.
 
 ---
 
