@@ -1,9 +1,14 @@
 # Brand Launch Accelerator — Flywheel Connectors PRD v2
 
 **Status:** Draft — supersedes v1 (commit dea8b46 on Xoery1234/BLA)
-**Date:** 2026-04-18 (revision r2 — piping-first pivot)
+**Date:** 2026-04-19 (revision r3 — three-auth-store clarification)
 **Owner:** J (Monks)
 **Scope:** Architecture for brief → generate → review → approve → publish flywheel, Revlon pilot, multi-tenant-ready foundation
+
+## Revision history
+
+- **r3 — 2026-04-19 — three-auth-store clarification.** Adversarial spec review (findings C3) surfaced that the r2 "unified Adobe IMS S2S OAuth" framing was wrong. Reality is three distinct auth stores (Workfront IMS S2S, EDS admin API keys, DA.live IMS user-backed). r3 rewrites §2 Auth, §3.1 Adobe MCP auth line, and §8 LOE driver prose to reflect this. LOE numeric estimate unchanged — the driver text was wrong but the estimate ballpark holds. See `docs/spec-review-findings-2026-04-19.md` C3 + `docs/mcp/adobe-mcp-spec.md` §3.3–3.5 for the authoritative auth details.
+- **r2 — 2026-04-18 — piping-first pivot.** See §0.
 
 ## 0. Sequencing pivot — piping first (added 2026-04-18)
 
@@ -40,7 +45,7 @@ v1 was written before we inventoried Monks' actual Adobe entitlements. Today's A
 | Area | v1 | v2 |
 |------|----|----|
 | MCP count | 4-5 separate MCPs | 2 MCPs + Orchestrator |
-| Adobe auth | Per-service tokens | Unified Adobe IMS S2S OAuth |
+| Adobe auth | Per-service tokens, no shared discipline | Three auth stores, one rotation policy, one Infisical layout, one error hierarchy (see §2 Auth) |
 | EDS publishing | Sidekick-only | EDS API for programmatic publish |
 | Frame.io | Dropped | Entitled, deferred to v1.1+ |
 | V/V track | Deferred (no clear path) | Entitled via Audio & Video Firefly Services, architecture-ready |
@@ -76,8 +81,25 @@ Inventory via Admin Console + Developer Console walkthrough under Monks IMS org:
 ### Adjacent (not planned for v0)
 - Experience Platform API, Privacy Service, Smart Content, App Builder — noted, not touched
 
-### Auth simplification
-All the above use **Adobe IMS OAuth Server-to-Server** (scope `openid,AdobeID,firefly_api,ff_apis` extending per service). One auth module, one credential rotation policy, one secret namespace in Infisical.
+### Auth — three stores, one discipline
+
+The Adobe MCP authenticates to three distinct auth stores. r2 described this as "unified Adobe IMS S2S OAuth"; that framing was wrong (adversarial review C3). r3 corrects it:
+
+1. **Workfront** — Adobe IMS OAuth Server-to-Server (client credentials).
+   - Infisical path: `/bla/dev/adobe/workfront/{client_id, client_secret}`.
+   - Scope: `openid,AdobeID,profile,additional_info.projectedProductContext` (Adobe-specific comma-separated scope format).
+
+2. **Edge Delivery Services** — admin API keys (non-IMS), scoped per site.
+   - Infisical path: `/bla/dev/adobe/eds/admin-api-key`.
+   - Namespace: `bla-demo` site only (isolation hard rule from §4).
+
+3. **DA.live** — Adobe IMS user-backed token (on behalf of a technical user).
+   - Infisical path: `/bla/dev/adobe/da-live/{access_token, refresh_token, user_email}`.
+   - Scope: *pending H4 resolution — see `docs/spec-review-findings-2026-04-19.md` §H4 and `docs/da-live-scope-query-2026-04-19.md`.*
+
+What is unified is not the auth *protocol* but the **discipline**: one Infisical layout, one credential-rotation policy (90-day rotation), one monitoring stream (`bla.auth.tokens` metric with per-store labels), one error hierarchy (`AuthError` base class with per-store subclasses).
+
+Source of truth for the auth contracts: `docs/mcp/adobe-mcp-spec.md` §3.3–3.5.
 
 JWT is deprecated (EOL 2025-06-30) and is not used anywhere.
 
@@ -94,11 +116,11 @@ JWT is deprecated (EOL 2025-06-30) and is not used anywhere.
 
 ### v2 plan (2 MCPs + Orchestrator)
 
-**3.1 Adobe MCP** (unified)
-- Wraps: Firefly, Photoshop, Content Tagging, Workfront, Edge Delivery Services
-- Auth: single Adobe IMS S2S OAuth client
+**3.1 Adobe MCP** (one module, three auth stores)
+- Wraps: Firefly, Photoshop, Content Tagging, Workfront, Edge Delivery Services, DA.live
+- Auth: three distinct stores — Workfront IMS S2S, EDS admin API keys, DA.live IMS user-backed. See §2 Auth and `docs/mcp/adobe-mcp-spec.md` §3.3–3.5.
 - Internal routing: tool name selects service (e.g. `firefly.generate`, `workfront.create_task`, `eds.publish`)
-- Rationale: all services share auth, rate-limit semantics, Adobe status API, and retry patterns. One MCP with per-service tools is simpler than 3 nearly-identical MCPs.
+- Rationale: all services share rate-limit semantics, Adobe status API, and retry patterns. One MCP with per-service tools + a shared credential-rotation discipline is still simpler than 3 nearly-identical MCPs, even without shared auth protocol.
 - Frame.io, Audio/Video, Custom Models → additive modules in this MCP when needed (v1.1+)
 
 **3.2 LLM MCP**
@@ -193,7 +215,7 @@ Every artifact created for BLA MUST be namespaced and non-destructive.
 | Phase | v1 estimate | v2 estimate | Driver |
 |-------|-------------|-------------|--------|
 | Phase 0 infra | 2 weeks | 1.5 weeks | Fewer MCP scaffolds |
-| Phase 1 MCPs | 4-5 weeks | 2.5-3 weeks | 2 MCPs instead of 4, unified Adobe auth |
+| Phase 1 MCPs | 4-5 weeks | 2.5-3 weeks | 2 MCPs instead of 4, disciplined auth isolation (3 auth stores, 1 rotation policy, 1 Infisical layout) |
 | Phase 2 orchestrator | 2 weeks | 1.5 weeks | Smaller integration surface |
 | Phase 3 Revlon pilot | 1-2 weeks | 0.5-1 week | No publish, demo only |
 | **Total** | **9-11 weeks** | **5.5-7 weeks** | **~35% reduction** |
